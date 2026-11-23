@@ -61,13 +61,19 @@ jobs:
       - name: Permiso de ejecución de gradlew
         run: chmod +x gradlew
 
-      # Diagnóstico: versiones de Sherpa-ONNX realmente publicadas (el runner sí llega a Maven Central).
-      - name: Diagnóstico de Sherpa-ONNX
+      # Diagnóstico de dependencias: comprueba en Maven Central que las librerías candidatas EXISTEN y qué versiones
+      # tienen (el runner sí llega a Maven Central). Añade aquí cualquier coordenada nueva ANTES de usarla en Gradle.
+      - name: Diagnóstico de dependencias
         continue-on-error: true
         run: |
           {
-            echo "--- Maven Central: com.k2fsa.sherpa.onnx:sherpa-onnx-android ---"
-            curl -sS --max-time 40 https://repo.maven.apache.org/maven2/com/k2fsa/sherpa/onnx/sherpa-onnx-android/maven-metadata.xml || echo "sin respuesta"
+            for c in com/alphacephei/vosk-android net/java/dev/jna/jna xyz/rementia/openwakeword ai/picovoice/porcupine-android; do
+              echo "--- $c"
+              curl -sS --max-time 40 -w '\nHTTP %{http_code}\n' "https://repo.maven.apache.org/maven2/$c/maven-metadata.xml" \
+                | grep -E "<latest>|<release>|HTTP" || echo "sin respuesta"
+            done
+            echo "--- modelo Vosk español (cabeceras)"
+            curl -sSI --max-time 40 https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip | grep -iE "^HTTP|content-length" || echo "sin respuesta"
           } > diag.log 2>&1
 
       # Los tests no bloquean la APK (si fallan, el job sigue en verde y el fallo queda en ci-logs); su resultado queda en el log (rama ci-logs).
@@ -134,7 +140,7 @@ jobs:
             echo "=== COMPILACIÓN (últimas 200 líneas) ==="
             tail -n 200 build.log 2>/dev/null || echo "sin log de compilación"
             echo
-            echo "=== DIAGNÓSTICO SHERPA-ONNX ==="
+            echo "=== DIAGNÓSTICO DE DEPENDENCIAS ==="
             cat diag.log 2>/dev/null || echo "sin diagnóstico"
             echo
             echo "=== VERIFICACIÓN FIREBASE EN LA APK ==="

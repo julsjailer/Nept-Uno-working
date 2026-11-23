@@ -100,6 +100,53 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Probar la última APK de Releases: autoenvío por voz, cambio de modelo y qué modelo muestra.
 - Decidir el orden del plan (puntos 1 a 3).
 
+## 7B. Guía de compilación para ChatGPT (y para cualquier IA que sustituya a Claude)
+
+Escrita por Claude tras los fallos de compilación de los runs #14, #17, #18 y #19. Objetivo: que ChatGPT pueda continuar solo sin dejar el proyecto en rojo. Estas reglas salen de errores reales, no de teoría.
+
+### Reglas de oro
+1. **Nunca añadas una dependencia sin comprobar que existe.** Los runs #17, #18 y #19 fallaron porque se probaron tres direcciones de Sherpa-ONNX "de memoria" (dos de JitPack y una de Maven Central) y ninguna existía. Se comprueba así: añade la ruta (por ejemplo `com/alphacephei/vosk-android`) a la lista del paso "Diagnóstico de dependencias" de `.github/workflows/build-apk.yml`, sube, y lee la sección "DIAGNÓSTICO DE DEPENDENCIAS" de `ci-logs`. Solo cuando salga `HTTP 200` y la versión, la usas en Gradle con esa versión exacta. Una ficha web que "existe" no prueba que la versión exista en el repositorio que usa Gradle.
+2. **Un solo cambio por commit.** No mezcles dependencia, código nuevo e interfaz en el mismo commit. Si falla, no sabrás cuál fue.
+3. **Espera el CI antes del siguiente commit de código.** Tras cada push, espera a que `ci-logs/ultimo-log.txt` muestre TU commit en la primera línea (`run #N · commit XXXXXXX`) y léelo completo. No apiles commits encima de un rojo. No des por bueno un run cuyo commit no es el tuyo.
+4. **Sincroniza antes de editar.** `git fetch origin trabajo` y avanza a la punta antes de tocar nada; antes de subir, otra vez. UNANZE.md ya tuvo choques por editarse a la vez.
+5. **Lee el archivo completo antes de editarlo y busca duplicados.** El run #14 falló porque se añadió un segundo `companion object` en una clase que ya tenía uno. Antes de declarar algo (companion, constantes, funciones, imports) haz `grep` del nombre en el archivo.
+6. **Usa solo APIs que hayas visto en la versión exacta que fijaste.** Lee el README o el código fuente de esa versión; no uses nombres de clases o parámetros de memoria. Un `Unresolved reference` casi siempre es esto.
+7. **No toques las versiones de Kotlin, AGP, Gradle ni Java** (el CI usa Java 21 y compileSdk 36). Si crees que hace falta, anótalo en UNANZE y pregunta al usuario.
+8. **Todo lo experimental debe poder apagarse sin borrar nada.** Patrón usado: una interfaz (`WakeWordEngine`) con un motor de reserva (`PendingWakeWordEngine`) y el motor real aparte. Si el motor real no compila, se cambia una línea para volver al de reserva y se renombra el archivo a `.kt.disabled` (así lo hizo Claude con Sherpa).
+9. **Mantén los tests al día.** Los tests que usan `android.*` necesitan `@RunWith(RobolectricTestRunner::class)` y `@Config(sdk = [36])`. Si cambias un comportamiento (como el envío automático por voz), actualiza los tests que lo daban por hecho. El escenario J de `NeptunoOfflineFirstSyncTest` es intermitente: si falla solo, repite el run antes de tocar código.
+10. **Los tests no ponen el run en rojo** (el paso tiene `continue-on-error`). Para saber si pasaron, abre la sección TESTS de `ci-logs` y busca `BUILD SUCCESSFUL` o `tests completed, N failed`. La APK sí falla el run si no compila.
+11. **Nada de secretos en el repo ni en UNANZE.** Claves de terceros (por ejemplo un AccessKey de Picovoice) van como secreto de GitHub Actions y se inyectan en el workflow; nunca en el código. `google-services.json` ya está en el repo porque es privado: si el repo pasara a público, hay que quitarlo.
+12. **Modelos descargados en tiempo de ejecución:** comprueba antes la URL, el tamaño mínimo esperado y la licencia, y anota la licencia en UNANZE (el modelo Moonshine español es de uso no comercial).
+13. **No des nada por funcionando hasta probarlo en el teléfono.** "Compila" no es "funciona". En la bitácora usa exactamente: `verificado en CI (run #N, commit XXXXXXX)`, `sin verificar` o `probado en teléfono por el usuario`.
+
+### Cómo leer el resultado del CI
+```
+git fetch origin ci-logs
+git show origin/ci-logs:ultimo-log.txt
+```
+El archivo trae, en orden: cabecera con run y commit, TESTS (últimas 120 líneas), COMPILACIÓN (últimas 200), DIAGNÓSTICO DE DEPENDENCIAS y VERIFICACIÓN DE FIREBASE. La APK compilada queda en Releases como `apk-latest`. Los commits que solo tocan archivos `*.md` no lanzan CI.
+
+### Lista de comprobación antes de cada push de código
+- [ ] Hice `git fetch` y estoy sobre la punta de `trabajo`.
+- [ ] Cada dependencia nueva tiene `HTTP 200` y versión en el diagnóstico de `ci-logs`.
+- [ ] Cada clase que uso está importada y existe en la versión fijada.
+- [ ] No dupliqué declaraciones (hice `grep`).
+- [ ] La función nueva se puede apagar sin romper el resto.
+- [ ] Actualicé los tests que cambian con mi cambio.
+- [ ] Mi cambio es una sola cosa.
+- [ ] Después de subir, esperaré a ver mi commit en `ci-logs` y lo leeré entero.
+
+### Qué hacer cuando falla
+1. Lee el log entero (no solo la última línea) y copia el primer error real (`e:`, `Could not find`, `Unresolved reference`, `FAILED`).
+2. Haz **un** arreglo para **esa** causa.
+3. Regístralo en UNANZE con estado `sin verificar` y espera el siguiente run.
+4. **Si dos intentos seguidos fallan por lo mismo, para.** Escribe en UNANZE qué sabes, qué supones y qué probaste, y aísla la función (regla 8). Seguir adivinando fue lo que hizo perder tres runs con Sherpa.
+5. Si el usuario recibe un aviso de GitHub, la causa casi siempre está en el run más reciente de `ci-logs`; no asumas que es del cambio anterior.
+
+### Límites de ChatGPT, hoy
+- Puede leer y escribir en el repo cuando su sesión tiene herramienta de escritura (lo ha hecho); si no la tiene, entrega el parche y el bloque de UNANZE para que Claude lo suba.
+- No puede probar en el teléfono ni ejecutar Gradle localmente: toda su verificación es el CI.
+
 ## 8. Bitácora (solo se añade al final)
 
 ### 2026-11-22 19:49 · Claude · hallazgo
@@ -301,4 +348,10 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Dónde: `ci-logs` (runs #20 y #21), release `apk-latest`.
 - Estado: compilación y tests verificados en CI (run #21). La APK incluye sincronización incremental, cambio de modelo Gemini y autoenvío por voz; NO incluye detección de "Hey Neptuno" (motor Sherpa desactivado). Nada de esto está probado en el teléfono.
 - Para las demás IA: el escenario J puede fallar de forma aleatoria; si vuelve a pasar con código distinto, mejorar el test (esperas por eventos en vez de tiempos) en lugar de reintentar a ciegas. Prioridad abierta: conseguir una fuente verificada del AAR de Sherpa-ONNX antes de reactivar el prototipo de voz.
+
+### 2026-11-23 19:00 · Claude · decisión
+- Qué: Alternativas al motor Sherpa para "Hey Neptuno", tras buscar en GitHub y documentación. (A) **Vosk** (Apache 2.0, modelo pequeño español `vosk-model-small-es-0.42`, 39 MB, Apache 2.0; los modelos pequeños admiten vocabulario dinámico, lo que permite reconocer solo unas pocas frases y descartar el resto): es la opción propuesta, porque sirve sin entrenar nada y es la técnica que usa el proyecto abierto OpenClaw Assistant. (B) **Porcupine** (Picovoice): más preciso y ligero, soporta español, pero exige AccessKey de cuenta y entrenar la frase "Hey Neptuno" en su consola; queda como mejora posterior. (C) **openWakeWord para Kotlin** (`xyz.rementia:openwakeword:0.1.3`, Apache 2.0, 18 estrellas): exige entrenar un modelo propio y el proyecto es pequeño; descartado por ahora. NO se ha comprobado que ninguna coordenada exista en Maven Central; por eso este commit añade al CI el diagnóstico de dependencias y se escribió la guía 7B para ChatGPT.
+- Dónde: `UNANZE.md` (sección 7B), `.github/workflows/build-apk.yml` (paso "Diagnóstico de dependencias").
+- Estado: sin verificar. Siguiente paso: leer el diagnóstico en `ci-logs` y, si `com.alphacephei:vosk-android` existe, implementar el motor con Vosk.
+- Para las demás IA: ChatGPT, leer la sección 7B antes de tocar código. No empezar el motor Vosk en paralelo: lo hace Claude en el siguiente commit.
 
