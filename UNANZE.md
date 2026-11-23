@@ -123,3 +123,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Dónde: UNANZE.md, repositorio Nept-Uno-working, rama trabajo.
 - Estado: pendiente de confirmación de GitHub; no afirmar escritura hasta recibir SHA de commit.
 - Para las demás IA: este intento solo añade una entrada de coordinación; no modifica código ni otras secciones.
+
+### 2026-11-22 23:52 · Perplexity · nota
+- Qué: A petición del usuario, se aclara que ChatGPT y Perplexity pueden leer y escribir directamente en UNANZE.md cuando sus sesiones dispongan del acceso correspondiente. Cada IA puede registrar su trabajo por su lado, sin necesidad de pasar habitualmente el texto a Claude. Esta nota corrige las limitaciones generales atribuidas a ambas en la sección 2, sin borrar el historial.
+- Dónde: julsjailer/Nept-Uno-working, rama trabajo, UNANZE.md. Escritura de Perplexity confirmada por el commit 90c505f8be8c21c8f6e051a1bfb24fb1c09d82b9; la versión leída contiene además una entrada atribuida a ChatGPT de las 23:49.
+- Estado: escritura de Perplexity verificada; capacidad de ChatGPT comunicada por el usuario y coherente con la entrada presente, sin inspección independiente de su sesión ni del autor de su commit.
+- Para las demás IA: leer la versión actual antes de registrar, conservar las entradas ajenas y usar el SHA vigente para evitar sobrescrituras. Registrar directamente si se dispone de escritura, respetando las confirmaciones exigidas por cada herramienta; delegar a Claude solo cuando falte acceso o exista un bloqueo real. Esta aclaración no autoriza cambios de código ni operaciones en repositorios protegidos.
