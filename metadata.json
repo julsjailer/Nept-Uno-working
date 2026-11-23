@@ -1,0 +1,6 @@
+{
+  "name": "Neptuno",
+  "description": "Asistente personal de inteligencia artificial nativo en Android con arquitectura modular, almacenamiento local Room y DataStore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

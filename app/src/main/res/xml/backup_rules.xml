@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Política conservadora de respaldos para Android 10–11 (API 29–30).
+   Excluye explícitamente la base de datos Room (conversaciones y memorias privadas)
+   y los archivos locales de DataStore de respaldos automáticos en la nube.
+-->
+<full-backup-content>
+    <exclude domain="database" path="." />
+    <exclude domain="file" path="datastore/" />
+    <exclude domain="sharedpref" path="." />
+</full-backup-content>

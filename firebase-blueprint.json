@@ -1,0 +1,217 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil y preferencias sincronizadas en la nube del usuario autenticado de Neptuno.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID de Firebase Auth del propietario."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Nombre visible del usuario."
+        },
+        "email": {
+          "type": "string",
+          "description": "Correo electrónico de la cuenta Google (opcional)."
+        },
+        "languageCode": {
+          "type": "string",
+          "enum": ["es", "en", "pt"],
+          "description": "Código de idioma preferido."
+        },
+        "personalityId": {
+          "type": "string",
+          "enum": ["analytical", "calm_guide", "concise", "explorer"],
+          "description": "Modo de personalidad seleccionado."
+        },
+        "avatarStyleId": {
+          "type": "string",
+          "enum": ["abyssal_core", "tidal_pulse", "trident_matrix"],
+          "description": "Estilo visual del avatar 2D."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca temporal de creación escrita con FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca temporal de actualización escrita con FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "languageCode",
+        "personalityId",
+        "avatarStyleId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MemoryEntry": {
+      "title": "MemoryEntry",
+      "description": "Recuerdo o preferencia autorizada explícitamente por el usuario.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID de Firebase Auth del propietario."
+        },
+        "title": {
+          "type": "string",
+          "description": "Título breve del registro de memoria."
+        },
+        "content": {
+          "type": "string",
+          "description": "Contenido autorizado por el usuario."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["PREFERENCE", "CONTEXT", "WORKFLOW", "GENERAL"],
+          "description": "Categoría de memoria."
+        },
+        "authorizedByUser": {
+          "type": "boolean",
+          "description": "Confirmación explícita del usuario."
+        },
+        "localId": {
+          "type": "integer",
+          "description": "Identificador numérico local de Room cuando existe sincronización."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca temporal de creación escrita con FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca temporal de actualización escrita con FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "content",
+        "category",
+        "authorizedByUser",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ConversationSession": {
+      "title": "ConversationSession",
+      "description": "Sesión de conversación de Neptuno respaldada en Firestore.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID de Firebase Auth del propietario."
+        },
+        "title": {
+          "type": "string",
+          "description": "Título de la sesión."
+        },
+        "messageCount": {
+          "type": "integer",
+          "description": "Cantidad de mensajes registrados."
+        },
+        "localId": {
+          "type": "integer",
+          "description": "Identificador numérico local de Room."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca temporal de creación escrita con FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca temporal de actualización escrita con FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "messageCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Mensaje individual perteneciente a una sesión de conversación.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID de Firebase Auth del propietario."
+        },
+        "conversationId": {
+          "type": "string",
+          "description": "ID del documento padre de conversación."
+        },
+        "sender": {
+          "type": "string",
+          "enum": ["USER", "ASSISTANT", "SYSTEM_NOTICE"],
+          "description": "Emisor del mensaje."
+        },
+        "content": {
+          "type": "string",
+          "description": "Contenido textual del mensaje."
+        },
+        "interrupted": {
+          "type": "boolean",
+          "description": "Indica si la respuesta fue interrumpida."
+        },
+        "providerId": {
+          "type": "string",
+          "description": "Identificador opcional del proveedor de IA."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca temporal de creación escrita con FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Marca temporal de actualización escrita con FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "conversationId",
+        "sender",
+        "content",
+        "interrupted",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Perfil privado y preferencias de Neptuno aisladas por usuario."
+    },
+    "/users/{userId}/memories/{memoryId}": {
+      "schema": { "$ref": "#/entities/MemoryEntry" },
+      "description": "Memorias autorizadas del usuario sincronizadas en Cloud Firestore."
+    },
+    "/users/{userId}/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/ConversationSession" },
+      "description": "Sesiones de conversación pertenecientes al usuario."
+    },
+    "/users/{userId}/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Mensajes de conversación pertenecientes a una sesión del usuario."
+    }
+  }
+}

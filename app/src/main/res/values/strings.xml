@@ -1,0 +1,119 @@
+<resources>
+    <string name="app_name">Neptuno</string>
+    <string name="brand_title">NEPTUNO</string>
+    <string name="brand_subtitle">Asistente Personal Modular</string>
+
+    <!-- Navegación -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_chat">Conversación</string>
+    <string name="nav_bluetooth">Bluetooth</string>
+    <string name="nav_memory">Memoria</string>
+    <string name="nav_tools">Herramientas</string>
+    <string name="nav_personalization">Identidad</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- Estados del Asistente -->
+    <string name="state_idle">Inactivo</string>
+    <string name="state_listening">Escuchando</string>
+    <string name="state_processing">Procesando</string>
+    <string name="state_speaking">Hablando</string>
+    <string name="state_error">Error</string>
+    <string name="state_offline">Sin conexión</string>
+
+    <!-- Inicio -->
+    <string name="home_start_conversation">Iniciar conversación</string>
+    <string name="home_quick_bluetooth">Bluetooth</string>
+    <string name="home_quick_settings">Configuración</string>
+    <string name="home_quick_personalization">Personalización</string>
+    <string name="home_quick_tools">Herramientas</string>
+    <string name="home_network_online">Conectado a Internet</string>
+    <string name="home_network_offline">Sin conexión a Internet</string>
+    <string name="home_network_forced_offline">Modo sin conexión activo</string>
+    <string name="home_provider_pending">Motor de IA: Integración pendiente</string>
+    <string name="home_provider_ready">Motor de IA operativo</string>
+
+    <!-- Conversación -->
+    <string name="chat_title">Conversación</string>
+    <string name="chat_new_session">Nueva sesión</string>
+    <string name="chat_input_placeholder">Escribe o dicta un mensaje para Neptuno…</string>
+    <string name="chat_send_cd">Enviar mensaje</string>
+    <string name="chat_mic_cd">Activar micrófono</string>
+    <string name="chat_interrupt_cd">Interrumpir respuesta</string>
+    <string name="chat_interrupt_label">Interrumpir</string>
+    <string name="chat_provider_banner_title">Proveedor de IA pendiente</string>
+    <string name="chat_provider_banner_body">El proveedor seleccionado aún está pendiente de integración. Puedes cambiar al motor operativo Gemini en Ajustes.</string>
+    <string name="chat_empty_title">Canal de voz y texto listo</string>
+    <string name="chat_empty_body">Escribe un mensaje o pulsa el micrófono para dictar por voz. Neptuno responderá mediante texto progresivo y síntesis de voz.</string>
+    <string name="chat_mic_permission_needed">Se requiere permiso de micrófono para usar el reconocimiento de voz.</string>
+    <string name="chat_offline_notice">Modo sin conexión activo. Los mensajes se registran localmente.</string>
+    <string name="chat_streaming_label">Respondiendo…</string>
+    <string name="chat_interrupted_badge">Respuesta interrumpida</string>
+
+    <!-- Bluetooth -->
+    <string name="bluetooth_title">Bluetooth y Audio</string>
+    <string name="bluetooth_status_on">Activado</string>
+    <string name="bluetooth_status_off">Desactivado</string>
+    <string name="bluetooth_status_unavailable">No disponible en este dispositivo</string>
+    <string name="bluetooth_permission_required">Se requieren permisos de Bluetooth para consultar dispositivos vinculados en Android 12+.</string>
+    <string name="bluetooth_grant_permission">Conceder permisos</string>
+    <string name="bluetooth_open_system_settings">Abrir ajustes de Bluetooth</string>
+    <string name="bluetooth_refresh">Actualizar</string>
+    <string name="bluetooth_paired_devices">Dispositivos vinculados</string>
+    <string name="bluetooth_no_paired_devices">No hay dispositivos Bluetooth vinculados detectados por el sistema.</string>
+    <string name="bluetooth_audio_routes">Rutas de audio detectadas</string>
+    <string name="bluetooth_audio_routes_notice">Se muestran los dispositivos reales que expone Android. Al tocar uno se guarda tu preferencia local en DataStore; el cambio activo de ruta de audio se implementará en la fase de Bluetooth y audio.</string>
+    <string name="bluetooth_audio_input">Preferencia de entrada de audio</string>
+    <string name="bluetooth_audio_output">Preferencia de salida de audio</string>
+    <string name="bluetooth_preference_saved">Preferencia guardada</string>
+    <string name="bluetooth_no_audio_devices">Sin dispositivos detectados en esta ruta.</string>
+
+    <!-- Personalización -->
+    <string name="personalization_title">Personalización</string>
+    <string name="personalization_voice_section">Perfil de voz (arquitectura extensible)</string>
+    <string name="personalization_personality_section">Personalidad del asistente</string>
+    <string name="personalization_language_section">Idioma preferido</string>
+    <string name="personalization_avatar_section">Estilo del personaje 2D</string>
+    <string name="personalization_state_preview">Vista previa de estados visuales</string>
+
+    <!-- Memoria -->
+    <string name="memory_title">Memoria Local</string>
+    <string name="memory_tab_facts">Preferencias y memoria</string>
+    <string name="memory_tab_history">Historial</string>
+    <string name="memory_add_entry">Guardar memoria autorizada</string>
+    <string name="memory_privacy_notice">Neptuno no almacena datos sensibles sin tu autorización explícita. Todos los registros residen localmente en Room.</string>
+    <string name="memory_clear_all">Eliminar toda la memoria</string>
+    <string name="memory_clear_history">Borrar historial</string>
+    <string name="memory_empty_facts">Aún no has autorizado recuerdos o preferencias locales.</string>
+    <string name="memory_empty_history">No hay conversaciones guardadas todavía.</string>
+
+    <!-- Herramientas -->
+    <string name="tools_title">Catálogo de Herramientas</string>
+    <string name="tools_subtitle">Contratos preparados para extensiones futuras. Ninguna herramienta externa está activa en esta fase.</string>
+
+    <!-- Configuración -->
+    <string name="settings_title">Configuración</string>
+    <string name="settings_connectivity">Conectividad</string>
+    <string name="settings_offline_mode">Modo sin conexión</string>
+    <string name="settings_offline_mode_desc">Deshabilita solicitudes externas futuras y opera solo con almacenamiento local.</string>
+    <string name="settings_audio">Audio y voz</string>
+    <string name="settings_auto_speak">Reproducir respuestas por voz</string>
+    <string name="settings_auto_speak_desc">Lee automáticamente las respuestas completas de Neptuno usando Android TextToSpeech.</string>
+    <string name="settings_barge_in">Interrupción de voz (barge-in)</string>
+    <string name="settings_barge_in_desc">Permite detener respuestas activas al iniciar nueva entrada de audio.</string>
+    <string name="settings_auto_route_bt">Priorizar audio Bluetooth</string>
+    <string name="settings_auto_route_bt_desc">Preferir dispositivos Bluetooth conectados cuando estén disponibles.</string>
+    <string name="settings_privacy">Privacidad y memoria</string>
+    <string name="settings_memory_consent">Autorizar guardado de memoria</string>
+    <string name="settings_memory_consent_desc">Habilita el registro manual y futuro de contexto en la base local Room.</string>
+    <string name="settings_save_history">Conservar historial de chat</string>
+    <string name="settings_save_history_desc">Almacena las conversaciones localmente entre sesiones.</string>
+    <string name="settings_appearance">Apariencia</string>
+    <string name="settings_about">Información de la aplicación</string>
+
+    <!-- Acciones comunes -->
+    <string name="action_back">Volver</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_confirm">Confirmar</string>
+</resources>
