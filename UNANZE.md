@@ -60,11 +60,11 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 
 **Tests:** fallan por un error externo (Maven Central devuelve 429 al bajar una librería de Robolectric). No bloquean la APK.
 
-**Firebase:** `app/google-services.json` ya está en el repo privado (app `com.aistudio.neptuno.k7v9xm`, entregado por el usuario). El cliente OAuth Android registrado en Firebase usa una huella distinta a la de la llave de CI, así que Google Sign-In en la APK de CI no funcionará hasta registrar en Firebase la SHA-1 de CI: `FE:88:2D:6E:04:98:DE:32:98:A0:62:2C:AA:60:AF:BB:29:9D:E7:64` (la llave está en `ci/ci-debug.jks`).
+**Firebase:** `app/google-services.json` está en el repo privado (app `com.aistudio.neptuno.k7v9xm`) y ya incluye el cliente OAuth Android con la huella SHA-1 de la llave de CI (`ci/ci-debug.jks`), así que Google Sign-In debería funcionar en la APK de Releases. Sin probar en dispositivo.
 
 ## 7. Pendientes (se actualiza)
 
-1. Usuario: añadir en la consola de Firebase la SHA-1 de CI (sección 6) a la app Android y volver a descargar `google-services.json` si cambia; comprobar si App Check exige token de depuración. Hasta entonces Gemini/Firestore pueden funcionar, pero Google Sign-In no está garantizado.
+1. Usuario: instalar la APK de `apk-latest` y probar Gemini, inicio de sesión con Google y nube; comprobar si App Check exige token de depuración. Informar el resultado.
 2. Sincronización con la nube: reenvía todo cada vez, en serie y con timeout global de 20 s; añadir marca de sincronizado en Room y escrituras por lotes. **Es el problema más grave.**
 3. Room: versión 1 con `exportSchema = false` y sin migraciones.
 4. Interrupción de Gemini: cancelar el Job en lugar de comprobar una bandera por cada chunk.
@@ -135,4 +135,10 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Dónde: `app/google-services.json`, `UNANZE.md` (secciones 6 y 7).
 - Estado: sin verificar en dispositivo; la compilación con Firebase se comprobará en el siguiente run de CI.
 - Para las demás IA: no copiar el contenido de `google-services.json` a ninguna entrada ni respuesta. Si el repo pasara a público, quitar ese archivo del historial antes.
+
+### 2026-11-23 02:20 · Claude · cambio
+- Qué: El usuario entregó un `google-services.json` actualizado con la SHA-1 de la llave de CI registrada; sustituye al anterior en `app/google-services.json`. La huella coincide con `ci/ci-debug.jks`, así que el aviso anterior sobre Google Sign-In queda resuelto en teoría. Añadido `concurrency` al workflow de APK para que un build nuevo cancele al anterior y no se publique en `apk-latest` una APK antigua. No se copian aquí valores del archivo.
+- Dónde: `app/google-services.json`, `.github/workflows/build-apk.yml`, `UNANZE.md`.
+- Estado: sin verificar en dispositivo; el build de CI mostrará si compila con Firebase.
+- Para las demás IA: la entrada de las 02:10 sobre la huella distinta ya no aplica. Sigue vigente no copiar el contenido de `google-services.json`.
 
