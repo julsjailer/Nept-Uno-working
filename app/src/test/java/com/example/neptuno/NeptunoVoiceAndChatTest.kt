@@ -108,6 +108,7 @@ class NeptunoVoiceAndChatTest {
             preferencesRepo.setOfflineMode(false)
             preferencesRepo.setBargeInEnabled(true)
             preferencesRepo.setAutoSendVoice(true)
+            preferencesRepo.setContinuousConversation(false)
             preferencesRepo.setMemoryAuthorized(true)
             preferencesRepo.setPersistConversationHistory(true)
             preferencesRepo.setPreferredAiProvider("gemini_firebase")
@@ -123,6 +124,15 @@ class NeptunoVoiceAndChatTest {
     fun tearDown() {
         database.close()
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `continuous conversation preference defaults off and persists changes`() = runTest(testDispatcher) {
+        assertFalse(preferencesRepo.userPreferences.first().continuousConversation)
+        preferencesRepo.setContinuousConversation(true)
+        assertTrue(preferencesRepo.userPreferences.first().continuousConversation)
+        preferencesRepo.setContinuousConversation(false)
+        assertFalse(preferencesRepo.userPreferences.first().continuousConversation)
     }
 
     @Test
