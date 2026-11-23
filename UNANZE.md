@@ -60,11 +60,11 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 
 **Tests:** fallan por un error externo (Maven Central devuelve 429 al bajar una librería de Robolectric). No bloquean la APK.
 
-**Firebase:** falta el `google-services.json` del usuario (app `com.aistudio.neptuno.k7v9xm`). Huella SHA-1 de la llave de firma de CI: `FE:88:2D:6E:04:98:DE:32:98:A0:62:2C:AA:60:AF:BB:29:9D:E7:64`.
+**Firebase:** `app/google-services.json` ya está en el repo privado (app `com.aistudio.neptuno.k7v9xm`, entregado por el usuario). El cliente OAuth Android registrado en Firebase usa una huella distinta a la de la llave de CI, así que Google Sign-In en la APK de CI no funcionará hasta registrar en Firebase la SHA-1 de CI: `FE:88:2D:6E:04:98:DE:32:98:A0:62:2C:AA:60:AF:BB:29:9D:E7:64` (SHA-256 en la bitácora del 2026-11-22 21:20 no; ver `ci/ci-debug.jks`).
 
 ## 7. Pendientes (se actualiza)
 
-1. El usuario entrega `google-services.json` para activar Firebase en la APK (App Check puede exigir token de depuración).
+1. Usuario: añadir en la consola de Firebase la SHA-1 de CI (sección 6) a la app Android y volver a descargar `google-services.json` si cambia; comprobar si App Check exige token de depuración. Hasta entonces Gemini/Firestore pueden funcionar, pero Google Sign-In no está garantizado.
 2. Sincronización con la nube: reenvía todo cada vez, en serie y con timeout global de 20 s; añadir marca de sincronizado en Room y escrituras por lotes. **Es el problema más grave.**
 3. Room: versión 1 con `exportSchema = false` y sin migraciones.
 4. Interrupción de Gemini: cancelar el Job en lugar de comprobar una bandera por cada chunk.
@@ -129,3 +129,10 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Dónde: julsjailer/Nept-Uno-working, rama trabajo, UNANZE.md. Escritura de Perplexity confirmada por el commit 90c505f8be8c21c8f6e051a1bfb24fb1c09d82b9; la versión leída contiene además una entrada atribuida a ChatGPT de las 23:49.
 - Estado: escritura de Perplexity verificada; capacidad de ChatGPT comunicada por el usuario y coherente con la entrada presente, sin inspección independiente de su sesión ni del autor de su commit.
 - Para las demás IA: leer la versión actual antes de registrar, conservar las entradas ajenas y usar el SHA vigente para evitar sobrescrituras. Registrar directamente si se dispone de escritura, respetando las confirmaciones exigidas por cada herramienta; delegar a Claude solo cuando falte acceso o exista un bloqueo real. Esta aclaración no autoriza cambios de código ni operaciones en repositorios protegidos.
+
+### 2026-11-23 02:10 · Claude · cambio
+- Qué: El usuario entregó `google-services.json`; se guardó como `app/google-services.json` en el repo privado y el workflow ya lo usa (no hace falta el secreto GOOGLE_SERVICES_JSON). El paquete coincide con el `applicationId`. Nota: el cliente OAuth Android del archivo tiene una huella de certificado distinta a la de `ci/ci-debug.jks`, por lo que el inicio de sesión con Google puede fallar en la APK de CI hasta registrar la SHA-1 de CI en Firebase. No se copian aquí valores del archivo.
+- Dónde: `app/google-services.json`, `UNANZE.md` (secciones 6 y 7).
+- Estado: sin verificar en dispositivo; la compilación con Firebase se comprobará en el siguiente run de CI.
+- Para las demás IA: no copiar el contenido de `google-services.json` a ninguna entrada ni respuesta. Si el repo pasara a público, quitar ese archivo del historial antes.
+
