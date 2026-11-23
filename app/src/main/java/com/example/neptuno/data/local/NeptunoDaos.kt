@@ -32,6 +32,24 @@ interface ConversationDao {
     @Query("SELECT * FROM conversations ORDER BY updatedAtMillis DESC")
     suspend fun getAllConversationsOnce(): List<ConversationEntity>
 
+    @Query("""
+        SELECT * FROM conversations c
+        WHERE c.cloudSyncedAtMillis IS NULL
+           OR EXISTS (
+               SELECT 1 FROM messages m
+               WHERE m.conversationId = c.id AND m.cloudSyncedAtMillis IS NULL
+           )
+        ORDER BY c.updatedAtMillis DESC
+    """)
+    suspend fun getConversationsNeedingCloudSync(): List<ConversationEntity>
+
+    @Query("""
+        UPDATE conversations
+        SET cloudSyncedAtMillis = :syncedAtMillis
+        WHERE id = :id AND updatedAtMillis = :expectedUpdatedAtMillis
+    """)
+    suspend fun markCloudSynced(id: Long, expectedUpdatedAtMillis: Long, syncedAtMillis: Long)
+
     @Query("SELECT * FROM conversations ORDER BY updatedAtMillis DESC LIMIT 1")
     suspend fun getLatestConversation(): ConversationEntity?
 
@@ -41,10 +59,10 @@ interface ConversationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertConversation(entity: ConversationEntity): Long
 
-    @Query("UPDATE conversations SET title = :title, updatedAtMillis = :updatedAt WHERE id = :id")
+    @Query("UPDATE conversations SET title = :title, updatedAtMillis = :updatedAt, cloudSyncedAtMillis = NULL WHERE id = :id")
     suspend fun updateConversationHeader(id: Long, title: String, updatedAt: Long)
 
-    @Query("UPDATE conversations SET updatedAtMillis = :updatedAt WHERE id = :id")
+    @Query("UPDATE conversations SET updatedAtMillis = :updatedAt, cloudSyncedAtMillis = NULL WHERE id = :id")
     suspend fun touchConversation(id: Long, updatedAt: Long)
 
     @Query("DELETE FROM conversations WHERE id = :id")
@@ -63,6 +81,12 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY timestampMillis ASC, id ASC")
     suspend fun getMessagesForConversationOnce(conversationId: Long): List<MessageEntity>
 
+    @Query("SELECT * FROM messages WHERE conversationId = :conversationId AND cloudSyncedAtMillis IS NULL ORDER BY timestampMillis ASC, id ASC")
+    suspend fun getUnsyncedMessagesForConversation(conversationId: Long): List<MessageEntity>
+
+    @Query("UPDATE messages SET cloudSyncedAtMillis = :syncedAtMillis WHERE id IN (:messageIds)")
+    suspend fun markCloudSynced(messageIds: List<Long>, syncedAtMillis: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(entity: MessageEntity): Long
 
@@ -78,6 +102,16 @@ interface MemoryDao {
 
     @Query("SELECT * FROM memory_entries ORDER BY updatedAtMillis DESC")
     suspend fun getAllMemoriesOnce(): List<MemoryEntity>
+
+    @Query("SELECT * FROM memory_entries WHERE authorizedByUser = 1 AND cloudSyncedAtMillis IS NULL ORDER BY updatedAtMillis DESC")
+    suspend fun getUnsyncedAuthorizedMemories(): List<MemoryEntity>
+
+    @Query("""
+        UPDATE memory_entries
+        SET cloudSyncedAtMillis = :syncedAtMillis
+        WHERE id = :id AND updatedAtMillis = :expectedUpdatedAtMillis
+    """)
+    suspend fun markCloudSynced(id: Long, expectedUpdatedAtMillis: Long, syncedAtMillis: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMemory(entity: MemoryEntity): Long

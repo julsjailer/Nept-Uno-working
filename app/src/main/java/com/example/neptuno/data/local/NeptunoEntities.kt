@@ -10,7 +10,8 @@ data class ConversationEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val title: String,
     val createdAtMillis: Long,
-    val updatedAtMillis: Long
+    val updatedAtMillis: Long,
+    val cloudSyncedAtMillis: Long? = null
 )
 
 @Entity(
@@ -32,7 +33,8 @@ data class MessageEntity(
     val content: String,
     val timestampMillis: Long,
     val providerId: String? = null,
-    val isInterrupted: Boolean = false
+    val isInterrupted: Boolean = false,
+    val cloudSyncedAtMillis: Long? = null
 )
 
 @Entity(tableName = "memory_entries")
@@ -43,5 +45,6 @@ data class MemoryEntity(
     val category: String,
     val authorizedByUser: Boolean,
     val createdAtMillis: Long,
-    val updatedAtMillis: Long
+    val updatedAtMillis: Long,
+    val cloudSyncedAtMillis: Long? = null
 )

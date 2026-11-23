@@ -74,3 +74,13 @@ data class FirestoreChatMessage(
     fun resolvedSender(): MessageSender =
         enumValues<MessageSender>().firstOrNull { it.name == sender } ?: MessageSender.SYSTEM_NOTICE
 }
+
+
+/** Mensaje local pendiente de respaldo. Su ID positivo se conserva como ID determinista en Firestore. */
+data class CloudMessageWrite(
+    val localMessageId: Long,
+    val sender: MessageSender,
+    val content: String,
+    val providerId: String?,
+    val interrupted: Boolean
+)

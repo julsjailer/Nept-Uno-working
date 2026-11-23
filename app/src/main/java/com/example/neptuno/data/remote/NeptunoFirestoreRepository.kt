@@ -8,6 +8,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -64,6 +65,29 @@ interface CloudRemoteStore {
         localMessageId: Long? = null
     ): Result<Unit>
 
+    suspend fun appendCloudMessages(
+        userId: String,
+        localConversationId: Long,
+        conversationTitle: String,
+        messages: List<CloudMessageWrite>
+    ): Result<Unit> {
+        for (message in messages) {
+            val result = appendCloudMessage(
+                userId = userId,
+                localConversationId = localConversationId,
+                conversationTitle = conversationTitle,
+                sender = message.sender,
+                content = message.content,
+                providerId = message.providerId,
+                interrupted = message.interrupted,
+                localMessageId = message.localMessageId
+            )
+            val failure = result.exceptionOrNull()
+            if (failure != null) return Result.failure(failure)
+        }
+        return Result.success(Unit)
+    }
+
     suspend fun deleteCloudConversation(userId: String, conversationDocId: String): Result<Unit>
     suspend fun clearAllCloudConversations(userId: String): Result<Unit>
 }
@@ -72,6 +96,11 @@ class NeptunoFirestoreRepository(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth = Firebase.auth
 ) : CloudRemoteStore {
+
+    private companion object {
+        const val MAX_MESSAGES_PER_BATCH = 400
+        const val MAX_DOCUMENT_IDS_PER_QUERY = 30
+    }
 
     constructor(context: Context) : this(
         db = FirebaseFirestore.getInstance(
@@ -440,6 +469,85 @@ class NeptunoFirestoreRepository(
                 batch.set(msgRef, msgPayload)
             }.await()
 
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.CREATE, docPath, auth)
+            Result.failure(e)
+        }
+    }
+
+
+    /**
+     * Sincroniza mensajes en lotes. Primero consulta IDs deterministas existentes (en grupos de 30),
+     * después escribe como máximo 400 mensajes + 1 actualización del contador por batch.
+     * Los documentos de mensajes son create-only según firestore.rules.
+     */
+    override suspend fun appendCloudMessages(
+        userId: String,
+        localConversationId: Long,
+        conversationTitle: String,
+        messages: List<CloudMessageWrite>
+    ): Result<Unit> {
+        if (messages.isEmpty()) return Result.success(Unit)
+        val convDocId = "conv_$localConversationId"
+        val docPath = "users/$userId/conversations/$convDocId/messages"
+        return try {
+            val uid = requireUserId()
+            check(uid == userId) { "Signed-in user mismatch; refusing cross-user message batch." }
+            val cleanTitle = conversationTitle.trim().ifBlank { "Sesión principal" }.take(160)
+            val convRef = db.collection("users").document(uid)
+                .collection("conversations").document(convDocId)
+            val messagesRef = convRef.collection("messages")
+
+            messages.chunked(MAX_MESSAGES_PER_BATCH).forEach { batchMessages ->
+                val existingIds = mutableSetOf<Long>()
+                batchMessages.chunked(MAX_DOCUMENT_IDS_PER_QUERY).forEach { queryMessages ->
+                    val ids = queryMessages.map { message ->
+                        require(message.localMessageId > 0L) { "ID local de mensaje inválido." }
+                        "local_msg_${message.localMessageId}"
+                    }
+                    val existing = messagesRef
+                        .whereIn(FieldPath.documentId(), ids.map { it as Any })
+                        .get()
+                        .await()
+                    existing.documents.forEach { document ->
+                        document.id.removePrefix("local_msg_").toLongOrNull()?.let(existingIds::add)
+                    }
+                }
+
+                val pending = batchMessages.filterNot { it.localMessageId in existingIds }
+                if (pending.isNotEmpty()) {
+                    val writeBatch = db.batch()
+                    writeBatch.update(
+                        convRef,
+                        mapOf(
+                            "messageCount" to FieldValue.increment(pending.size.toLong()),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+                    pending.forEach { message ->
+                        val cleanContent = message.content.trim().take(16000)
+                        require(cleanContent.isNotEmpty()) { "El mensaje no puede estar vacío." }
+                        val cleanProvider = message.providerId?.trim()
+                            ?.takeIf { it.isNotEmpty() }?.take(80)
+                        val messageRef = messagesRef.document("local_msg_${message.localMessageId}")
+                        val payload = buildMap<String, Any> {
+                            put("userId", uid)
+                            put("conversationId", convDocId)
+                            put("sender", message.sender.name)
+                            put("content", cleanContent)
+                            put("interrupted", message.interrupted)
+                            if (cleanProvider != null) put("providerId", cleanProvider)
+                            put("createdAt", FieldValue.serverTimestamp())
+                            put("updatedAt", FieldValue.serverTimestamp())
+                        }
+                        writeBatch.set(messageRef, payload)
+                    }
+                    writeBatch.commit().await()
+                }
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e

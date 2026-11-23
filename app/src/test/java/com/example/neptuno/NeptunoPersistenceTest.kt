@@ -185,6 +185,62 @@ class NeptunoPersistenceTest {
         assertTrue(memoryRepository.observeMemories().first().isEmpty())
     }
 
+
+    @Test
+    fun `cloud sync markers make synchronization incremental and are invalidated by local changes`() = runTest {
+        val conversationId = conversationRepository.createConversation("Pendiente")
+        val firstMessageId = conversationRepository.addMessage(
+            ChatMessage(
+                conversationId = conversationId,
+                sender = MessageSender.USER,
+                content = "Primer mensaje"
+            )
+        )
+
+        assertEquals(1, conversationRepository.getConversationsNeedingCloudSyncSnapshot().size)
+        assertEquals(1, conversationRepository.getUnsyncedMessagesSnapshot(conversationId).size)
+
+        conversationRepository.markConversationSynced(
+            conversationId,
+            conversationRepository.getConversationsSnapshot().single().updatedAtMillis
+        )
+        conversationRepository.markMessagesSynced(listOf(firstMessageId))
+        assertTrue(conversationRepository.getUnsyncedMessagesSnapshot(conversationId).isEmpty())
+        assertTrue(conversationRepository.getConversationsNeedingCloudSyncSnapshot().isEmpty())
+
+        val secondMessageId = conversationRepository.addMessage(
+            ChatMessage(
+                conversationId = conversationId,
+                sender = MessageSender.ASSISTANT,
+                content = "Respuesta nueva"
+            )
+        )
+        assertEquals(listOf(secondMessageId), conversationRepository.getUnsyncedMessagesSnapshot(conversationId).map { it.id })
+        assertEquals(1, conversationRepository.getConversationsNeedingCloudSyncSnapshot().size)
+
+        conversationRepository.updateConversationTitle(conversationId, "Título actualizado")
+        assertEquals("Título actualizado", conversationRepository.getConversationsNeedingCloudSyncSnapshot().single().title)
+    }
+
+    @Test
+    fun `authorized memory sync marker resets after a local edit`() = runTest {
+        val memoryId = memoryRepository.saveMemory(
+            MemoryEntry(
+                title = "Preferencia",
+                content = "Valor inicial",
+                category = MemoryCategory.PREFERENCE,
+                authorizedByUser = true
+            )
+        )
+        val first = memoryRepository.getUnsyncedMemoriesSnapshot().single()
+        assertEquals(memoryId, first.id)
+        memoryRepository.markMemorySynced(memoryId, first.updatedAtMillis)
+        assertTrue(memoryRepository.getUnsyncedMemoriesSnapshot().isEmpty())
+
+        memoryRepository.saveMemory(first.copy(content = "Valor actualizado"))
+        assertEquals("Valor actualizado", memoryRepository.getUnsyncedMemoriesSnapshot().single().content)
+    }
+
     @Test
     fun `datastore persists and restores main user preferences`() = runTest {
         val prefsRepo = UserPreferencesRepository(context)

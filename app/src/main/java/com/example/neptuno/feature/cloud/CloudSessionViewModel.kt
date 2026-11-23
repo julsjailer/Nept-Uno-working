@@ -14,6 +14,7 @@ import com.example.neptuno.core.NetworkMonitor
 import com.example.neptuno.data.local.ConversationRepository
 import com.example.neptuno.data.local.MemoryRepository
 import com.example.neptuno.data.local.UserPreferencesRepository
+import com.example.neptuno.data.remote.CloudMessageWrite
 import com.example.neptuno.data.remote.CloudRemoteStore
 import com.example.neptuno.data.remote.CloudUiState
 import com.example.neptuno.data.remote.FirestoreCloudSyncGateway
@@ -352,7 +353,7 @@ class CloudSessionViewModel(
 
                     // 2. Memorias autorizadas en Room -> Firestore (idempotente por local_<id>)
                     if (prefs.memoryAuthorized) {
-                        val localMemories = memoryRepository.getMemoriesSnapshot()
+                        val localMemories = memoryRepository.getUnsyncedMemoriesSnapshot()
                         var memoryFailureCount = 0
                         var lastMemoryErr: String? = null
                         for (memory in localMemories) {
@@ -372,6 +373,8 @@ class CloudSessionViewModel(
                                     res.exceptionOrNull()!!,
                                     "No se pudieron respaldar todas las memorias."
                                 )
+                            } else {
+                                memoryRepository.markMemorySynced(memory.id, memory.updatedAtMillis)
                             }
                         }
                         if (memoryFailureCount > 0) {
@@ -381,7 +384,7 @@ class CloudSessionViewModel(
 
                     // 3. Conversaciones y mensajes de Room -> Firestore (idempotente por conv_<id> / local_msg_<id>)
                     if (prefs.persistConversationHistory) {
-                        val localConversations = conversationRepository.getConversationsSnapshot()
+                        val localConversations = conversationRepository.getConversationsNeedingCloudSyncSnapshot()
                         var convFailureCount = 0
                         var lastConvErr: String? = null
                         for (session in localConversations) {
@@ -400,28 +403,38 @@ class CloudSessionViewModel(
                                 )
                                 continue
                             }
+                            conversationRepository.markConversationSynced(
+                                id = session.id,
+                                expectedUpdatedAtMillis = session.updatedAtMillis
+                            )
 
-                            val localMessages = conversationRepository.getMessagesSnapshot(session.id)
-                            for (msg in localMessages) {
-                                if (msg.content.isBlank()) continue
+                            val pendingMessages = conversationRepository.getUnsyncedMessagesSnapshot(session.id)
+                                .filter { it.content.isNotBlank() }
+                            for (messageChunk in pendingMessages.chunked(400)) {
                                 val msgRes = runTimedStep {
-                                    store.appendCloudMessage(
+                                    store.appendCloudMessages(
                                         userId = user.userId,
                                         localConversationId = session.id,
                                         conversationTitle = session.title,
-                                        sender = msg.sender,
-                                        content = msg.content,
-                                        providerId = msg.providerId,
-                                        interrupted = msg.isInterrupted,
-                                        localMessageId = msg.id.takeIf { it > 0L }
+                                        messages = messageChunk.map { msg ->
+                                            CloudMessageWrite(
+                                                localMessageId = msg.id,
+                                                sender = msg.sender,
+                                                content = msg.content,
+                                                providerId = msg.providerId,
+                                                interrupted = msg.isInterrupted
+                                            )
+                                        }
                                     )
                                 }
                                 if (msgRes.isFailure) {
-                                    convFailureCount += 1
+                                    convFailureCount += messageChunk.size
                                     lastConvErr = recordFailure(
                                         msgRes.exceptionOrNull()!!,
                                         "No se pudieron respaldar todos los mensajes."
                                     )
+                                } else {
+                                    conversationRepository.markMessagesSynced(messageChunk.map { it.id })
                                 }
                             }
                         }
