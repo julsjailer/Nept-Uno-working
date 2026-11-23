@@ -28,6 +28,18 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Por defecto el caché de Gradle solo se escribe desde la rama principal; aquí se trabaja en "trabajo",
+          # así que sin esto cada corrida bajaba todas las librerías de Maven Central (y recibía 429).
+          cache-read-only: false
+
+      # Robolectric descarga su propio jar de Android a ~/.m2 en tiempo de ejecución; se guarda aparte.
+      - name: Caché de Robolectric
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: robolectric-
 
       # Llave de firma debug fija (ci/ci-debug.jks, contraseña estándar "android"): todas las APK
       # salen con la misma firma, así que puedes instalar versiones nuevas encima de la anterior.
@@ -55,10 +67,10 @@ jobs:
         run: |
           set -o pipefail
           # Hasta 3 intentos: Maven Central a veces responde 429 (demasiadas peticiones) en los runners.
-          for i in 1 2 3; do
+          for i in 1 2 3 4; do
             ./gradlew testDebugUnitTest --no-daemon --no-configuration-cache 2>&1 | tee -a test.log && exit 0
-            echo "Intento $i fallido, reintentando en 20 s..." | tee -a test.log
-            sleep 20
+            echo "Intento $i fallido, reintentando en 45 s..." | tee -a test.log
+            sleep 45
           done
           exit 1
 
