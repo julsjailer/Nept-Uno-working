@@ -121,6 +121,9 @@ dependencies {
   // Para reactivarlo: añadir aquí una dependencia verificada y renombrar SherpaMoonshineWakeWordEngine.kt.disabled a .kt
   // (y volver a usarlo en NeptunoAppContainer). Ver UNANZE.md.
   // implementation("<dependencia verificada de sherpa-onnx>")
+  // Vosk: reconocimiento local en español para la activación "Hey Neptuno" (versiones verificadas en Maven Central, run #22).
+  implementation("com.alphacephei:vosk-android:0.3.75")
+  implementation("net.java.dev.jna:jna:5.19.1@aar")
   // implementation(libs.logging.interceptor)
   // implementation(libs.moshi.kotlin)
   // implementation(libs.okhttp)
