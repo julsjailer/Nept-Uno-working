@@ -3,6 +3,9 @@ name: Build APK
 on:
   push:
     branches: [main, trabajo]
+    # Los cambios que solo tocan documentación (p. ej. UNANZE.md) no recompilan la APK.
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 permissions:

@@ -1,0 +1,112 @@
+# UNANZE — puente de comunicación del proyecto Nept-Uno
+
+Archivo central donde **Claude, ChatGPT y Perplexity** dejan constancia de lo que hacen, saben y auditan, para trabajar los tres al mismo ritmo con el mismo estado. Es el archivo que más cambia del repositorio. Lo lee el usuario (julsjailer) y cualquiera de las tres IA.
+
+## 1. Reglas (obligatorias, sin preguntar)
+
+1. **Registrar siempre.** Cada vez que una IA hace, descubre, decide o audita algo del proyecto, lo anota aquí **automáticamente, sin pedir permiso**. Si no quedó en UNANZE, no cuenta como hecho.
+2. **Leer antes de actuar.** Al empezar un chat nuevo o retomar tras una pausa, la IA lee este archivo completo (sobre todo "Estado vivo" y las últimas entradas) antes de proponer o cambiar nada.
+3. **Solo se añade a la bitácora.** Las entradas de la sección 6 no se borran ni se reescriben; si algo cambia, se añade una entrada nueva que lo corrige. "Estado vivo" y "Pendientes" sí se actualizan.
+4. **Nada secreto.** Prohibido escribir aquí claves, tokens, contraseñas, el contenido de `google-services.json` o datos personales. Aunque el repo sea privado.
+5. **Honestidad.** Se anota lo verificado como verificado y lo supuesto como supuesto. Si algo no se pudo compilar, probar o leer, se dice.
+6. **Zonas protegidas.** No tocar el repositorio original `julsjailer/Nept-Uno` ni `julsjailer/mini-proyectos-potecitos-`. Se trabaja solo en `julsjailer/Nept-Uno-working`, rama `trabajo`.
+7. **Sin pisarse.** Antes de editar código, mirar en la bitácora si otra IA está en el mismo tema y, si es así, anotar el cruce.
+
+## 2. Quién puede escribir qué
+
+| IA | Cómo registra | Límite real |
+|---|---|---|
+| **Claude** | Edita y hace commit de este archivo directamente (cuando la sesión tiene la GitHub App con escritura). | Solo lo hace dentro de una conversación con acceso al repo. |
+| **ChatGPT** | Entrega el bloque de entrada ya redactado; el usuario lo pega o le pide a Claude que lo registre. | Su conector de GitHub es **solo de lectura** (no hace commits). Con Codex sí podría escribir. |
+| **Perplexity** | Igual que ChatGPT: entrega el bloque de entrada para que se registre. | Se asume solo lectura/búsqueda mientras no se compruebe lo contrario. |
+
+Cuando una IA no puede escribir, debe terminar su respuesta con el bloque de entrada listo (formato de la sección 5) y decir: "Pásale esto a Claude con `UNANZE registrar`".
+
+## 3. Comandos simples del usuario
+
+El usuario escribe estas órdenes en cualquier chat; todas las IA las entienden igual.
+
+| Comando | Qué debe hacer la IA |
+|---|---|
+| `UNANZE leer` | Leer este archivo y resumir en pocas líneas el estado, lo último hecho por cada IA y lo pendiente. |
+| `UNANZE registrar` | Añadir a la bitácora lo que esa IA hizo o supo desde la última entrada (o entregar el bloque si no puede escribir). |
+| `UNANZE estado` | Responder corto: qué está hecho, qué falla, qué sigue. |
+| `UNANZE pasar a <IA>` | Preparar un mensaje breve para esa IA con lo que necesita saber de lo que hizo la que responde. |
+| `UNANZE auditar` | Revisar el estado real del repo (código, CI, pendientes) contra lo anotado aquí y registrar las diferencias. |
+
+## 4. Presentarse (texto para pegar en ChatGPT o Perplexity)
+
+> Trabajamos en el proyecto Nept-Uno (app Android) con tres IA: Claude, ChatGPT y Perplexity. El puente es el archivo UNANZE.md en el repo privado julsjailer/Nept-Uno-working, rama trabajo. Lee UNANZE.md, sigue sus reglas y, cada vez que hagas algo, termina tu respuesta con un bloque de entrada en el formato de la sección 5, sin que te lo pida. Obedece los comandos `UNANZE leer`, `registrar`, `estado`, `pasar a <IA>` y `auditar`. No pongas secretos en ninguna entrada.
+
+## 5. Formato de entrada de la bitácora
+
+```
+### AAAA-MM-DD HH:MM · IA · tipo
+- Qué: (hecho, hallazgo, decisión o auditoría, en 1-3 líneas)
+- Dónde: (archivos, commit o enlace)
+- Estado: verificado / sin verificar / bloqueado
+- Para las demás IA: (lo que deben saber o hacer, o "nada")
+```
+
+Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora de referencia: America/Caracas.
+
+## 6. Estado vivo (se actualiza)
+
+**Proyecto:** NEPTUNO, asistente de IA nativo para Android (Kotlin, Compose, Room, DataStore, Firebase AI Logic con Gemini, Firestore opcional). Arquitectura en `ARCHITECTURE.md`.
+
+**Repos:** original `Nept-Uno` (público, no tocar) · trabajo `Nept-Uno-working` (privado; `main` = copia exacta del original en 1ac4381, `trabajo` = cambios).
+
+**Compilación:** la APK debug compila en CI y se publica en Releases como `apk-latest` ("APK debug (último build)"). Sin `google-services.json` no funcionan Gemini, inicio de sesión ni nube. Los logs del último CI quedan en la rama `ci-logs` (archivo `ultimo-log.txt`).
+
+**Tests:** fallan por un error externo (Maven Central devuelve 429 al bajar una librería de Robolectric). No bloquean la APK.
+
+**Firebase:** falta el `google-services.json` del usuario (app `com.aistudio.neptuno.k7v9xm`). Huella SHA-1 de la llave de firma de CI: `FE:88:2D:6E:04:98:DE:32:98:A0:62:2C:AA:60:AF:BB:29:9D:E7:64`.
+
+## 7. Pendientes (se actualiza)
+
+1. El usuario entrega `google-services.json` para activar Firebase en la APK (App Check puede exigir token de depuración).
+2. Sincronización con la nube: reenvía todo cada vez, en serie y con timeout global de 20 s; añadir marca de sincronizado en Room y escrituras por lotes. **Es el problema más grave.**
+3. Room: versión 1 con `exportSchema = false` y sin migraciones.
+4. Interrupción de Gemini: cancelar el Job en lugar de comprobar una bandera por cada chunk.
+5. Dependencias antiguas (Compose BOM 2024.09, lifecycle 2.8, navigation 2.8); `firebase-appcheck-debug` como `implementation`; release sin minificación.
+6. Tests de CI: resolver el 429 de Maven (otro espejo o reintento).
+7. Dividir `ChatViewModel` (810 líneas) y `CloudSessionViewModel` (646); quitar los `!!` restantes.
+8. Idea futura: modo offline con modelo local pequeño (MiniMind u otro) sin sustituir a Gemini; requiere motor de inferencia en Android (llama.cpp o MNN). Sin decidir.
+
+## 8. Bitácora (solo se añade al final)
+
+### 2026-11-22 19:49 · Claude · hallazgo
+- Qué: Revisión del repo. Arquitectura sólida y reglas de Firestore bien hechas; encontrados los problemas de la sección 7 (sincronización, clasificación de errores, logs con datos personales, Room sin migraciones, dependencias antiguas).
+- Dónde: repositorio completo, sin compilar localmente.
+- Estado: verificado leyendo el código; no ejecutado.
+- Para las demás IA: tomar los pendientes de la sección 7 como punto de partida.
+
+### 2026-11-22 21:00 · Claude · cambio
+- Qué: Corregida la clasificación de errores de Gemini (`"rate"` coincidía con "generate"; códigos HTTP ahora como números aislados) y los logs de errores de Firestore ya no guardan UID ni correo en release. Añadidos README y `gradlew` ejecutable.
+- Dónde: `GeminiFirebaseProvider.kt`, `FirestoreErrorHandler.kt`, `README.md`, rama `trabajo`.
+- Estado: sin verificar con tests (los tests no corren aún en CI por el 429).
+- Para las demás IA: no repetir estos arreglos.
+
+### 2026-11-22 21:20 · Claude · cambio
+- Qué: CI en un solo workflow (`build-apk.yml`): tests, APK debug, artefacto, release `apk-latest` y logs en rama `ci-logs`. Llave de firma fija en `ci/ci-debug.jks` (llave debug estándar, contraseña "android", no es secreto).
+- Dónde: `.github/workflows/build-apk.yml`, `ci/ci-debug.jks`.
+- Estado: verificado en CI (run #4: APK compilada y release creado).
+- Para las demás IA: los logs de CI se leen en la rama `ci-logs`.
+
+### 2026-11-22 23:00 · Claude · cambio
+- Qué: El proyecto ya compila sin `google-services.json` (`default_web_client_id` se resuelve en tiempo de ejecución; si falta, Google Sign-In queda desactivado). Tests de CI con `--no-configuration-cache` y 3 intentos.
+- Dónde: `GoogleAuthController.kt`, `build-apk.yml`, commit 853c687.
+- Estado: verificado (compilación OK en CI); tests siguen fallando por 429 externo.
+- Para las demás IA: la APK de Releases no incluye Firebase hasta tener el `google-services.json`.
+
+### 2026-11-22 23:05 · Claude · nota
+- Qué: El usuario compartió MiniMind (github.com/jingyaogong/minimind, Apache-2.0, modelo de 64M entrenable desde cero). Valoración: no sustituye a Gemini; solo sería útil como modo offline opcional y exige motor local en Android. Entrenar requiere GPU, que Claude no tiene.
+- Dónde: pendiente 8.
+- Estado: sin decidir.
+- Para las demás IA: si alguna evalúa viabilidad real en Android (MNN o llama.cpp), anotarlo aquí.
+
+### 2026-11-22 23:30 · Claude · decisión
+- Qué: Creado este archivo (UNANZE.md) como puente entre Claude, ChatGPT y Perplexity, con reglas, comandos y formato. El workflow de APK ignora los cambios que solo toquen `*.md`, para no recompilar en cada registro.
+- Dónde: `UNANZE.md`, `.github/workflows/build-apk.yml`.
+- Estado: verificado (archivo subido a `trabajo`).
+- Para las demás IA: usar el texto de la sección 4 para incorporarse.
