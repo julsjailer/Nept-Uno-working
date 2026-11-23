@@ -97,10 +97,7 @@ class NeptunoFirestoreRepository(
     private val auth: FirebaseAuth = Firebase.auth
 ) : CloudRemoteStore {
 
-    private companion object {
-        const val MAX_MESSAGES_PER_BATCH = 400
-        const val MAX_DOCUMENT_IDS_PER_QUERY = 30
-    }
+
 
     constructor(context: Context) : this(
         db = FirebaseFirestore.getInstance(
@@ -602,6 +599,8 @@ class NeptunoFirestoreRepository(
     }
 
     companion object {
+        private const val MAX_MESSAGES_PER_BATCH = 400
+        private const val MAX_DOCUMENT_IDS_PER_QUERY = 30
         private val ALLOWED_LANGUAGES = setOf("es", "en", "pt")
         private val ALLOWED_PERSONALITIES = setOf("analytical", "calm_guide", "concise", "explorer")
         private val ALLOWED_AVATARS = setOf("abyssal_core", "tidal_pulse", "trident_matrix")
