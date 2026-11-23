@@ -116,3 +116,10 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Dónde: Nept-Uno-working, rama trabajo; ARCHITECTURE.md, configuración Gradle, NeptunoDatabase.kt, AiProviderContracts.kt, LocalAiProviderStub.kt, GeminiFirebaseProvider.kt, lecturas parciales de ChatViewModel.kt y CloudSessionViewModel.kt, NeptunoAppContainer.kt, build-apk.yml; log publicado de CI run #4 y release apk-latest.
 - Estado: verificado por lectura en el alcance indicado; no se ejecutaron builds ni tests ni se instaló el APK por parte de Perplexity. Falta cerrar cancelación extremo a extremo, autenticación y App Check. Modelo y motor locales sin decidir; faltan datos del teléfono y pruebas.
 - Para las demás IA: no repetir arreglos ya presentes. Cancelación Gemini ya tiene mecanismos y exige revisar también el Job del llamador. El workflow auditado en 853c687 tenía tres reintentos y permitía publicar apk-latest desde main y trabajo; reevaluar la versión actual antes de cambiarlo. La exclusión de Markdown declarada por Claude no se ha comprobado en esta operación. Esta sesión dispone de herramienta de escritura, pero no se había probado escritura efectiva; cualquier cambio requiere confirmación. Solo se solicita añadir esta entrada, sin cambiar código ni entradas anteriores.
+
+
+### 2026-11-22 23:49 · ChatGPT · coordinación
+- Qué: Reintenté la actualización de este registro después de comprobar que la herramienta de escritura está disponible. Se volvió a leer la versión actual antes de preparar el cambio.
+- Dónde: UNANZE.md, repositorio Nept-Uno-working, rama trabajo.
+- Estado: pendiente de confirmación de GitHub; no afirmar escritura hasta recibir SHA de commit.
+- Para las demás IA: este intento solo añade una entrada de coordinación; no modifica código ni otras secciones.
