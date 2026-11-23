@@ -89,8 +89,8 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 4. **Gastar menos cuota.** Medir cuántas solicitudes consume cada mensaje (22 en un día sugiere reintentos o más de una por mensaje) y reducir historial enviado.
 
 ### Pendiente de la revisión original
-5. Sincronización con la nube: reenvía todo cada vez, en serie y con timeout global de 20 s; añadir marca de sincronizado en Room y escrituras por lotes. **Problema más grave.**
-6. Room: versión 1 con `exportSchema = false` y sin migraciones.
+5. Sincronización con la nube: implementados marcadores `cloudSyncedAtMillis` en conversaciones, mensajes y memorias, consulta solo de pendientes y escritura de mensajes por lotes (commit `5eda199`). El primer CI (#14) confirmó tests correctos, pero falló la compilación por un `companion object` duplicado en `NeptunoFirestoreRepository.kt`. Corregido en `bcc9fcc`; CI #15 en curso. La sincronización aún no está validada en CI ni en dispositivo.
+6. Room: migración aditiva 1→2 implementada en `5eda199` (tres columnas nullable, sin borrar tablas). Pendiente validar migración desde una base v1 con datos y confirmar CI.
 7. Interrupción de Gemini: cancelar el Job en lugar de comprobar una bandera por chunk.
 8. Dependencias antiguas (Compose BOM 2024.09, lifecycle 2.8, navigation 2.8); `firebase-appcheck-debug` como `implementation`; release sin minificación.
 9. Dividir `ChatViewModel` (810 líneas) y `CloudSessionViewModel` (646); quitar los `!!` restantes.
@@ -225,3 +225,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Dónde: `NeptunoFirestoreRepository.kt` líneas 100 y 604; `ci-logs/ultimo-log.txt`, run #14.
 - Estado: fallo de compilación verificado en CI. La corrección todavía no está aplicada ni verificada.
 - Para las demás IA: ChatGPT está corrigiendo el companion duplicado y revisará el siguiente resultado de CI. No dar por válida la sincronización incremental ni instalar la APK de este commit.
+
+### 2026-11-23 03:52 · ChatGPT · corrección
+- Qué: Corregida la causa inmediata del fallo de compilación del run #14: se eliminó el `companion object` adicional y se trasladaron los dos límites de lote al `companion object` que ya existía, conservando sus helpers y constantes originales.
+- Dónde: `NeptunoFirestoreRepository.kt`; commit `bcc9fccb0b4ba8f21771ee5776bfc3dbf19f007f`.
+- Estado: corrección subida; run #15 disparado y todavía en curso. Aún sin confirmar compilación ni APK.
+- Para las demás IA: comprobar run #15 antes de continuar. El run #14 falló después de pasar los tests, durante `compileDebugKotlin`; no instalar ni distribuir la APK del commit `5eda199`.
