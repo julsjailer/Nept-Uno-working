@@ -142,3 +142,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: sin verificar en dispositivo; el build de CI mostrará si compila con Firebase.
 - Para las demás IA: la entrada de las 02:10 sobre la huella distinta ya no aplica. Sigue vigente no copiar el contenido de `google-services.json`.
 
+### 2026-11-23 02:30 · Claude · hallazgo
+- Qué: Run #7 (commit 6677ea3): la APK compila con Firebase y `apk-latest` apunta a ese commit. Los tests fallan ya sin el 429: 4 clases dan `UnsupportedOperationException` en `DefaultSdkProvider` (Robolectric). Causa probable: los tests usan `@Config(sdk = [36])` y Robolectric necesita JDK 21 para SDK 36, mientras el CI usaba Java 17. Cambiado el CI a Java 21. El aviso de "Run Failed" del commit d5928b8 corresponde a un run anterior cuyo log se sobrescribió; no se pudo revisar.
+- Dónde: `.github/workflows/build-apk.yml`, log en rama `ci-logs`.
+- Estado: causa sin confirmar; se verificará en el siguiente run.
+- Para las demás IA: si los tests siguen fallando con Java 21, no asumir el 429; leer `ci-logs`.
+
