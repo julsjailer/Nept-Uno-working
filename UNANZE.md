@@ -52,7 +52,7 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 
 ## 6. Estado vivo (se actualiza)
 
-**Última actualización:** 2026-11-23 03:40 · Claude.
+**Última actualización:** 2026-11-23 18:10 · Claude (pasa el relevo a ChatGPT; ver sección 7C).
 
 **Proyecto:** NEPTUNO, asistente de IA nativo para Android (Kotlin, Compose, Room, DataStore, Firebase AI Logic con Gemini, Firestore opcional). Arquitectura en `ARCHITECTURE.md`.
 
@@ -70,6 +70,8 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 
 **Voz:** el selector de voces del dispositivo ya existía en Ajustes. Nuevo ajuste "Enviar automáticamente lo que digo" (activado por defecto): al llegar la transcripción final el mensaje se envía solo.
 
+**"Hey Neptuno" (estado a 18:10):** motor Vosk (`VoskWakeWordEngine.kt`, modelo español pequeño descargado la primera vez) conectado en `NeptunoAppContainer`. Al detectar: `WakeWordForegroundService.handleDetection` libera el micrófono → `WakeActivationBus.request()` → abre `MainActivity` (directo + notificación full-screen) → `NeptunoAppShell` llama a `ChatViewModel.startVoiceFromWake()` → dicta y envía solo → `voiceTurnEnded` → el servicio reanuda la escucha. Run #25 (000526c) verde. **Sin probar en teléfono tras el endurecimiento** (antes saltaba con cualquier sonido).
+
 **IA local:** `LocalAiProviderStub.kt` es un esqueleto sin modelo. Sin Gemini la app no responde con IA.
 
 ## 7. Pendientes y plan (se actualiza)
@@ -85,7 +87,7 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 ### Plan acordado con el usuario (orden propuesto por Claude, sin confirmar)
 1. **Voz natural y gratuita.** (a) Sin código: instalar en el teléfono las voces de alta calidad del motor de Google y elegirlas en Ajustes. (b) Evaluar un TTS neuronal local (Piper o sherpa-onnx) para los Redmi de 4 GB. (c) Voz de nube (Google Cloud o Gemini): descartada por ahora por cuota/facturación.
 2. **Conversación continua tipo Gemini Live.** Primero un modo manos libres con lo existente (escuchar, responder, volver a escuchar). Ojo: cada turno gasta 1 solicitud. Después, evaluar la API Live de Firebase AI Logic (disponibilidad y cuota en plan gratuito sin comprobar).
-3. **"Hey Neptuno" en segundo plano.** Servicio en primer plano con micrófono y notificación fija + detector de palabra clave (Porcupine con clave gratuita de uso personal, u openWakeWord/sherpa-onnx sin clave). Riesgos sin probar: Xiaomi/MIUI suele cerrar servicios en segundo plano (autoinicio y ahorro de batería), consumo de batería, privacidad del micrófono, restricciones de Android 14.
+3. **"Hey Neptuno" en segundo plano.** *(HECHO en código con Vosk el 2026-11-23, pendiente de prueba en teléfono; ver estado vivo.)* Servicio en primer plano con micrófono y notificación fija + detector de palabra clave (Porcupine con clave gratuita de uso personal, u openWakeWord/sherpa-onnx sin clave). Riesgos sin probar: Xiaomi/MIUI suele cerrar servicios en segundo plano (autoinicio y ahorro de batería), consumo de batería, privacidad del micrófono, restricciones de Android 14.
 4. **Gastar menos cuota.** Medir cuántas solicitudes consume cada mensaje (22 en un día sugiere reintentos o más de una por mensaje) y reducir historial enviado.
 
 ### Pendiente de la revisión original
@@ -146,6 +148,40 @@ El archivo trae, en orden: cabecera con run y commit, TESTS (últimas 120 línea
 ### Límites de ChatGPT, hoy
 - Puede leer y escribir en el repo cuando su sesión tiene herramienta de escritura (lo ha hecho); si no la tiene, entrega el parche y el bloque de UNANZE para que Claude lo suba.
 - No puede probar en el teléfono ni ejecutar Gradle localmente: toda su verificación es el CI.
+
+## 7C. RELEVO TEMPORAL: ChatGPT sustituye a Claude (desde 2026-11-23 18:10)
+
+Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hasta que el usuario diga "pasar a Claude".** Lee primero 7B completa (las 13 reglas de compilación): son obligatorias. Aquí van las reglas extra para este relevo.
+
+**Antes de tocar nada**
+1. `git fetch origin && git checkout trabajo && git pull`. Trabaja SOLO en la rama `trabajo` del repo `Nept-Uno-working`. Nunca en `main`, nunca en `Nept-Uno` (original), nunca en `mini-proyectos-potecitos-`.
+2. Lee el final de la bitácora (sección 8) y la rama `ci-logs` (`ultimo-log.txt`): debe decir "BUILD SUCCESSFUL" en TESTS y COMPILACIÓN con el commit más reciente. Si no, tu primera tarea es arreglar eso, nada más.
+3. Anota en la bitácora que empiezas, con tu nombre (ChatGPT).
+
+**Cómo trabajar sin romper la compilación (resumen, el detalle está en 7B)**
+- **Un cambio pequeño por commit.** Haz push, espera a que `ci-logs/ultimo-log.txt` muestre TU SHA corto en la primera línea (`run #N · commit <sha>`), mira que diga BUILD SUCCESSFUL, y solo entonces haz el siguiente cambio. No apiles cambios sin verificar.
+- **No uses una librería sin comprobar que existe.** Añade su ruta a `Diagnóstico de dependencias` en `build-apk.yml`, push, lee el resultado en `ci-logs` y usa solo la versión que aparezca. Ya verificadas y en uso: `com.alphacephei:vosk-android:0.3.75`, `net.java.dev.jna:jna:5.19.1@aar`. Verificadas pero sin usar: `xyz.rementia:openwakeword:0.1.5`, `ai.picovoice:porcupine-android:4.0.2`. Sherpa-ONNX: NO existe con ninguna de las 3 coordenadas probadas; no lo reintentes.
+- **Antes de crear una clase, función o `companion object`, busca con grep que no exista ya** (el run #14 falló por un `companion object` duplicado).
+- Usa solo APIs de Kotlin/Android/Compose que ya aparezcan en el código del repo o en las versiones fijadas en `gradle/libs.versions.toml`. No cambies versiones de Kotlin, AGP, Gradle ni Java.
+- Si cambias la firma de un constructor o función pública, busca todos sus usos (incluidos tests en `app/src/test`) y actualízalos en el mismo commit. `ChatViewModel`, `NeptunoAppContainer` y `WakeWordEngine` tienen tests/usos: no cambies sus firmas existentes, **añade** miembros nuevos.
+- Los archivos `.kt` de tests con Robolectric llevan `@RunWith(RobolectricTestRunner::class)` y `@Config(sdk=[36])`. Código que usa `android.util.Log` o `org.json` necesita Robolectric; la lógica pura (como `VoskPhraseMatcher.matches`) se prueba con JUnit simple.
+- **Dos fallos seguidos de la misma causa → para.** Escribe en la bitácora qué falló, qué probaste y el texto exacto del error de `ci-logs`, y deja la decisión al usuario/Claude. No sigas adivinando.
+- Nunca digas "funciona" de algo que no se probó en el teléfono: di "compila y pasa tests, sin probar en teléfono".
+- No copies valores de `app/google-services.json` en ningún archivo ni mensaje. No subas claves ni tokens.
+
+**Código que Claude acaba de dejar (no lo rehagas, extiéndelo)**
+- Detector: `voice/wake/VoskWakeWordEngine.kt` (contiene `VoskPhraseMatcher`, `VoskSpanishModel`). Parámetros: solo resultados finales, gramática saludo+"neptuno", confianza mínima `0.95 - 0.4*sensibilidad`, frase ≤ 2.2 s, enfriamiento 3 s.
+- Puente: `voice/wake/WakeActivationBus.kt`; servicio `WakeWordForegroundService.kt` (`handleDetection`); en el chat `ChatViewModel.startVoiceFromWake()` y `voiceTurnEnded`; conexión en `NeptunoNavHost.kt`.
+- `SherpaMoonshineWakeWordEngine.kt.disabled` es solo referencia de estructura; no lo renombres.
+
+**Cola de trabajo para ChatGPT (en este orden; marca cada una en la bitácora al terminar)**
+1. **Esperar resultado del usuario** sobre "Hey Neptuno" en el teléfono. Si dice que no detecta ("neptuno" fuera del vocabulario), prueba: (a) añadir variantes fonéticas a `VoskPhraseMatcher.phrases` ("neptuno", "nep tuno" no valen; usa palabras españolas reales como "neptuno" y alternativas comunes que el modelo ya conozca), o (b) evaluar Porcupine/openWakeWord con el patrón `Pending*` y sin cambiar el resto. Si dice que detecta con ruido, sube `minConfidence` o baja `MAX_PHRASE_SECONDS`, siempre con test.
+2. **Conversación continua (manos libres).** En `ChatViewModel`: añadir un ajuste `continuousConversation` (preferencia en DataStore, desactivado por defecto, con interruptor en Ajustes y texto en `strings.xml`). Cuando esté activo y termine de hablar la respuesta (TTS), reabrir el dictado con `startVoiceFromWake()`-like; parar tras 2 turnos sin voz. Un commit para la preferencia, otro para la lógica. Respeta la cuota: cada turno gasta 1 solicitud de Gemini.
+3. **Reducir cuota de Gemini.** Contar solicitudes por mensaje en `GeminiFirebaseProvider` (solo log local sin datos personales) y limitar el historial enviado (p. ej. últimos 10 mensajes). Añade test.
+4. **Voz natural.** Sin dependencias nuevas: en Ajustes, guiar al usuario a instalar voces de alta calidad del motor de Google y preseleccionar la mejor voz en español disponible (`TextToSpeech.getVoices()`, preferir calidad alta y no `isNetworkConnectionRequired`). Piper/sherpa TTS solo después de verificar la dependencia por CI.
+5. Pendientes de la lista 7 (puntos 7 a 9), de uno en uno.
+
+**Al terminar cada tarea**: bitácora (formato de la sección 5), actualizar la sección 6 si cambia el estado, y avisar al usuario en una frase de qué compila y qué falta probar.
 
 ## 8. Bitácora (solo se añade al final)
 
@@ -369,3 +405,7 @@ El archivo trae, en orden: cabecera con run y commit, TESTS (últimas 120 línea
 - Manifest: USE_FULL_SCREEN_INTENT; MainActivity singleTop/showWhenLocked/turnScreenOn.
 - Estado: **sin verificar en teléfono**. Riesgos: MIUI (permiso "ventanas emergentes en segundo plano" + sin restricción de batería), Android 14, falsos negativos si "neptuno" está fuera del léxico.
 - Pendiente de lo pedido a ChatGPT: voz natural (TTS), conversación continua tipo Live (reabrir micrófono tras la respuesta), reducir uso de cuota de Gemini.
+
+### 2026-11-23 18:10 · Claude · Relevo a ChatGPT
+- El usuario se ausenta y pide que ChatGPT sea el suplente temporal. Añadida la sección 7C (reglas, código dejado, cola de trabajo) y actualizados el estado vivo (sección 6) y el plan (sección 7, punto 3).
+- Estado entregado: rama `trabajo` en bd89b33 (docs) sobre 000526c (último build verde, run #25).
