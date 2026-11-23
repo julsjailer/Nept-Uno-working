@@ -70,7 +70,7 @@ jobs:
             curl -sS --max-time 40 https://repo.maven.apache.org/maven2/com/k2fsa/sherpa/onnx/sherpa-onnx-android/maven-metadata.xml || echo "sin respuesta"
           } > diag.log 2>&1
 
-      # Los tests no bloquean la APK; su resultado queda en el log (rama ci-logs).
+      # Los tests no bloquean la APK (si fallan, el job sigue en verde y el fallo queda en ci-logs); su resultado queda en el log (rama ci-logs).
       - name: Tests unitarios
         continue-on-error: true
         run: |
