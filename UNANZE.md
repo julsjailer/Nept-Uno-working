@@ -17,8 +17,8 @@ Archivo central donde **Claude, ChatGPT y Perplexity** dejan constancia de lo qu
 | IA | Cómo registra | Límite real |
 |---|---|---|
 | **Claude** | Edita y hace commit de este archivo directamente (cuando la sesión tiene la GitHub App con escritura). | Solo lo hace dentro de una conversación con acceso al repo. |
-| **ChatGPT** | Entrega el bloque de entrada ya redactado; el usuario lo pega o le pide a Claude que lo registre. | Su conector de GitHub es **solo de lectura** (no hace commits). Con Codex sí podría escribir. |
-| **Perplexity** | Igual que ChatGPT: entrega el bloque de entrada para que se registre. | Se asume solo lectura/búsqueda mientras no se compruebe lo contrario. |
+| **ChatGPT** | Puede registrar directamente cuando su sesión tiene herramienta de escritura (lo hizo en la bitácora); si no, entrega el bloque de entrada para que se registre. | Depende del acceso de cada sesión; confirmar siempre con el SHA del commit. |
+| **Perplexity** | Registra directamente cuando su sesión tiene escritura (confirmado con el commit 90c505f); si no, entrega el bloque. | Depende del acceso de cada sesión. |
 
 Cuando una IA no puede escribir, debe terminar su respuesta con el bloque de entrada listo (formato de la sección 5) y decir: "Pásale esto a Claude con `UNANZE registrar`".
 
@@ -52,26 +52,53 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 
 ## 6. Estado vivo (se actualiza)
 
+**Última actualización:** 2026-11-23 03:40 · Claude.
+
 **Proyecto:** NEPTUNO, asistente de IA nativo para Android (Kotlin, Compose, Room, DataStore, Firebase AI Logic con Gemini, Firestore opcional). Arquitectura en `ARCHITECTURE.md`.
 
-**Repos:** original `Nept-Uno` (público, no tocar) · trabajo `Nept-Uno-working` (privado; `main` = copia exacta del original en 1ac4381, `trabajo` = cambios).
+**Repos:** original `Nept-Uno` (público, no tocar) · trabajo `Nept-Uno-working` (privado; `main` = copia exacta del original en 1ac4381, `trabajo` = cambios). No tocar `mini-proyectos-potecitos-`.
 
-**Compilación:** la APK debug compila en CI y se publica en Releases como `apk-latest` ("APK debug (último build)"). Sin `google-services.json` no funcionan Gemini, inicio de sesión ni nube. Los logs del último CI quedan en la rama `ci-logs` (archivo `ultimo-log.txt`).
+**Dispositivos de prueba (dato del usuario):** Redmi 10C y Redmi 9C, ambos con 4 GB de RAM. El usuario los considera buenos para el proyecto.
 
-**Tests:** fallan por un error externo (Maven Central devuelve 429 al bajar una librería de Robolectric). No bloquean la APK.
+**Compilación y CI:** un solo workflow (`build-apk.yml`) con Java 21: tests, APK debug firmada con llave fija (`ci/ci-debug.jks`), release `apk-latest` ("APK debug (último build)"), verificación de recursos de Firebase dentro de la APK y logs en la rama `ci-logs` (`ultimo-log.txt`). Los commits que solo tocan `*.md` no recompilan. Un build nuevo cancela al anterior.
 
-**Firebase:** `app/google-services.json` está en el repo privado (app `com.aistudio.neptuno.k7v9xm`) y ya incluye el cliente OAuth Android con la huella SHA-1 de la llave de CI (`ci/ci-debug.jks`), así que Google Sign-In debería funcionar en la APK de Releases. Sin probar en dispositivo.
+**Tests:** en el run #12 (70322c1) pasaron 35 de 36; el que falló (STT) ya está corregido en 6d759a3, pendiente de ver el siguiente run.
 
-## 7. Pendientes (se actualiza)
+**Firebase y cuenta:** `app/google-services.json` está en el repo privado con la SHA-1 de la llave de CI. Según el usuario, el inicio de sesión con Google y la sincronización con la nube ya funcionan en el teléfono.
 
-1. Usuario: instalar la APK de `apk-latest` y probar Gemini, inicio de sesión con Google y nube; comprobar si App Check exige token de depuración. Informar el resultado.
-2. Sincronización con la nube: reenvía todo cada vez, en serie y con timeout global de 20 s; añadir marca de sincronizado en Room y escrituras por lotes. **Es el problema más grave.**
-3. Room: versión 1 con `exportSchema = false` y sin migraciones.
-4. Interrupción de Gemini: cancelar el Job en lugar de comprobar una bandera por cada chunk.
-5. Dependencias antiguas (Compose BOM 2024.09, lifecycle 2.8, navigation 2.8); `firebase-appcheck-debug` como `implementation`; release sin minificación.
-6. Tests de CI: resolver el 429 de Maven (otro espejo o reintento).
-7. Dividir `ChatViewModel` (810 líneas) y `CloudSessionViewModel` (646); quitar los `!!` restantes.
-8. Idea futura: modo offline con modelo local pequeño (MiniMind u otro) sin sustituir a Gemini; requiere motor de inferencia en Android (llama.cpp o MNN). Sin decidir.
+**Gemini:** responde (según el usuario). La cuota gratuita es de 20 solicitudes por modelo y por día. El proveedor prueba en orden `gemini-3.8-flash`, `gemini-4-hydrogen`, `gemini-3.5-flash-lite` ante cuota agotada (429) o saturación (503/"high demand"); recuerda el modelo cuando es por cuota. El nombre del proveedor muestra el último modelo que respondió.
+
+**Voz:** el selector de voces del dispositivo ya existía en Ajustes. Nuevo ajuste "Enviar automáticamente lo que digo" (activado por defecto): al llegar la transcripción final el mensaje se envía solo.
+
+**IA local:** `LocalAiProviderStub.kt` es un esqueleto sin modelo. Sin Gemini la app no responde con IA.
+
+## 7. Pendientes y plan (se actualiza)
+
+### Hecho
+- Arreglos de clasificación de errores de Gemini y de logs sin datos personales.
+- README, CI con APK descargable, logs en `ci-logs`, Java 21, llave de firma fija.
+- Compilación sin `google-services.json` y Firebase activo con el archivo del usuario.
+- Cambio automático de modelo Gemini ante 429 y saturación, con modelo visible en el nombre del proveedor.
+- Envío automático de lo dictado por voz.
+- Puente UNANZE entre Claude, ChatGPT y Perplexity.
+
+### Plan acordado con el usuario (orden propuesto por Claude, sin confirmar)
+1. **Voz natural y gratuita.** (a) Sin código: instalar en el teléfono las voces de alta calidad del motor de Google y elegirlas en Ajustes. (b) Evaluar un TTS neuronal local (Piper o sherpa-onnx) para los Redmi de 4 GB. (c) Voz de nube (Google Cloud o Gemini): descartada por ahora por cuota/facturación.
+2. **Conversación continua tipo Gemini Live.** Primero un modo manos libres con lo existente (escuchar, responder, volver a escuchar). Ojo: cada turno gasta 1 solicitud. Después, evaluar la API Live de Firebase AI Logic (disponibilidad y cuota en plan gratuito sin comprobar).
+3. **"Hey Neptuno" en segundo plano.** Servicio en primer plano con micrófono y notificación fija + detector de palabra clave (Porcupine con clave gratuita de uso personal, u openWakeWord/sherpa-onnx sin clave). Riesgos sin probar: Xiaomi/MIUI suele cerrar servicios en segundo plano (autoinicio y ahorro de batería), consumo de batería, privacidad del micrófono, restricciones de Android 14.
+4. **Gastar menos cuota.** Medir cuántas solicitudes consume cada mensaje (22 en un día sugiere reintentos o más de una por mensaje) y reducir historial enviado.
+
+### Pendiente de la revisión original
+5. Sincronización con la nube: reenvía todo cada vez, en serie y con timeout global de 20 s; añadir marca de sincronizado en Room y escrituras por lotes. **Problema más grave.**
+6. Room: versión 1 con `exportSchema = false` y sin migraciones.
+7. Interrupción de Gemini: cancelar el Job en lugar de comprobar una bandera por chunk.
+8. Dependencias antiguas (Compose BOM 2024.09, lifecycle 2.8, navigation 2.8); `firebase-appcheck-debug` como `implementation`; release sin minificación.
+9. Dividir `ChatViewModel` (810 líneas) y `CloudSessionViewModel` (646); quitar los `!!` restantes.
+10. Modo offline con modelo local pequeño (MiniMind u otro): sin decidir; entrenar requiere GPU y la app necesita un motor de inferencia (llama.cpp o MNN).
+
+### Para el usuario
+- Probar la última APK de Releases: autoenvío por voz, cambio de modelo y qué modelo muestra.
+- Decidir el orden del plan (puntos 1 a 3).
 
 ## 8. Bitácora (solo se añade al final)
 
@@ -185,4 +212,10 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Dónde: `NeptunoVoiceAndChatTest.kt`.
 - Estado: APK verificada en CI; tests corregidos sin verificar hasta el siguiente run. Sin probar en el teléfono.
 - Para las demás IA: el ajuste se llama "Enviar automáticamente lo que digo" (activado por defecto).
+
+### 2026-11-23 03:40 · Claude · nota
+- Qué: Registro integral pedido por el usuario. HECHO (commits en `trabajo`): 5a2a711 errores de Gemini y logs; c36346b/c2195ce `gradlew` ejecutable; 32aef37, 4a48498, 72ea943 CI con APK, llave fija y logs en `ci-logs`; 853c687 compilar sin Firebase; f9cef3f UNANZE; d5928b8 y 6677ea3 `google-services.json` con SHA-1 de CI; 3d409e2 Java 21; f0ef8c7 verificación de Firebase en la APK; 52f3f6b y 3c08a80 cambio de modelo ante 429; 70322c1 y 6d759a3 autoenvío por voz, cambio ante saturación y tests. SE HARÁ: plan de la sección 7 (voz natural, conversación continua, "Hey Neptuno", ahorro de cuota, sincronización, Room, dependencias). Dato nuevo del usuario: sus teléfonos son Redmi 10C y Redmi 9C de 4 GB de RAM.
+- Dónde: `UNANZE.md` secciones 2, 6 y 7; historial de `trabajo`.
+- Estado: verificado contra el historial de git; los resultados de CI citados salen de `ci-logs` (run #12). El comportamiento en teléfono se basa en lo que reporta el usuario, sin comprobación independiente.
+- Para las demás IA: este registro sustituye al estado anterior de las secciones 6 y 7. Antes de proponer cambios de voz o de servicio en segundo plano, tener en cuenta los dispositivos (4 GB de RAM) y que el orden del plan aún no está confirmado.
 
