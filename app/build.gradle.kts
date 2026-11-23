@@ -117,7 +117,7 @@ dependencies {
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   // Sherpa-ONNX: reconocimiento de voz local en español para el prototipo de activación.
-  implementation("com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v2.0.3")
+  implementation("com.k2fsa.sherpa.onnx:sherpa-onnx-android:2.0.3")
   // implementation(libs.logging.interceptor)
   // implementation(libs.moshi.kotlin)
   // implementation(libs.okhttp)

@@ -61,6 +61,15 @@ jobs:
       - name: Permiso de ejecución de gradlew
         run: chmod +x gradlew
 
+      # Diagnóstico: versiones de Sherpa-ONNX realmente publicadas (el runner sí llega a Maven Central).
+      - name: Diagnóstico de Sherpa-ONNX
+        continue-on-error: true
+        run: |
+          {
+            echo "--- Maven Central: com.k2fsa.sherpa.onnx:sherpa-onnx-android ---"
+            curl -sS --max-time 40 https://repo.maven.apache.org/maven2/com/k2fsa/sherpa/onnx/sherpa-onnx-android/maven-metadata.xml || echo "sin respuesta"
+          } > diag.log 2>&1
+
       # Los tests no bloquean la APK; su resultado queda en el log (rama ci-logs).
       - name: Tests unitarios
         continue-on-error: true
@@ -124,6 +133,9 @@ jobs:
             echo
             echo "=== COMPILACIÓN (últimas 200 líneas) ==="
             tail -n 200 build.log 2>/dev/null || echo "sin log de compilación"
+            echo
+            echo "=== DIAGNÓSTICO SHERPA-ONNX ==="
+            cat diag.log 2>/dev/null || echo "sin diagnóstico"
             echo
             echo "=== VERIFICACIÓN FIREBASE EN LA APK ==="
             cat verify.log 2>/dev/null || echo "sin verificación"
