@@ -60,7 +60,7 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 
 **Tests:** fallan por un error externo (Maven Central devuelve 429 al bajar una librería de Robolectric). No bloquean la APK.
 
-**Firebase:** `app/google-services.json` ya está en el repo privado (app `com.aistudio.neptuno.k7v9xm`, entregado por el usuario). El cliente OAuth Android registrado en Firebase usa una huella distinta a la de la llave de CI, así que Google Sign-In en la APK de CI no funcionará hasta registrar en Firebase la SHA-1 de CI: `FE:88:2D:6E:04:98:DE:32:98:A0:62:2C:AA:60:AF:BB:29:9D:E7:64` (SHA-256 en la bitácora del 2026-11-22 21:20 no; ver `ci/ci-debug.jks`).
+**Firebase:** `app/google-services.json` ya está en el repo privado (app `com.aistudio.neptuno.k7v9xm`, entregado por el usuario). El cliente OAuth Android registrado en Firebase usa una huella distinta a la de la llave de CI, así que Google Sign-In en la APK de CI no funcionará hasta registrar en Firebase la SHA-1 de CI: `FE:88:2D:6E:04:98:DE:32:98:A0:62:2C:AA:60:AF:BB:29:9D:E7:64` (la llave está en `ci/ci-debug.jks`).
 
 ## 7. Pendientes (se actualiza)
 
