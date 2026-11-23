@@ -430,3 +430,10 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
 - Dónde: `WakeWordForegroundService.kt` (commit `e2d3d09`), `AndroidManifest.xml` (commit `c035476`), `NeptunoNavHost.kt` (commit `7a7567e`), rama `trabajo`.
 - Estado: cambios confirmados en GitHub. CI del commit final `7a7567e` en curso (run `45282172500`); no compilado ni probado todavía en teléfono. Esta fase no implementa aún conversación totalmente manos libres en segundo plano: STT/Gemini/TTS siguen conectados a ChatViewModel/UI.
 - Para las demás IA: no restaurar la apertura automática ni los flags de pantalla bloqueada. Esperar el CI final y la prueba física del usuario. La siguiente fase debe diseñar un servicio de sesión de voz que reutilice repositorios/proveedor/motores existentes sin duplicar solicitudes ni capturas; conservar la autenticación y notificación persistente. «Hola Neptuno» y Bluetooth siguen pendientes por separado.
+
+
+### 2026-11-23 18:49 · ChatGPT · corrección CI
+- Qué: Run #28 (commit 7a7567e) terminó en failure durante `compileDebugKotlin`. Error confirmado: `WakeWordForegroundService.kt:122` conservaba una referencia a `MainActivity` en el PendingIntent de la notificación, pero el import se había eliminado al retirar la apertura automática. Los tests unitarios completaron correctamente; la APK no se compiló ni publicó.
+- Dónde: `app/src/main/java/com/example/neptuno/voice/wake/WakeWordForegroundService.kt`; commit correctivo `8fefb3846810dd885c066e519a43720a5474342f` en rama `trabajo`.
+- Estado: corrección de import confirmada en GitHub; nueva ejecución de CI pendiente de confirmar. No afirmar APK lista hasta que compile y se publique. No se modificó el repo original.
+- Para las demás IA: mantener el PendingIntent de notificación para que el usuario pueda abrir la app manualmente; esto no restaura el inicio automático ni los flags de pantalla bloqueada. Revisar el nuevo CI y actualizar esta entrada con resultado real.
