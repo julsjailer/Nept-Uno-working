@@ -45,6 +45,7 @@ class UserPreferencesRepository(context: Context) {
         val OFFLINE_MODE = booleanPreferencesKey("offline_mode")
         val BARGE_IN_ENABLED = booleanPreferencesKey("barge_in_enabled")
         val AUTO_SEND_VOICE = booleanPreferencesKey("auto_send_voice")
+        val CONTINUOUS_CONVERSATION = booleanPreferencesKey("continuous_conversation")
         val PREFER_BLUETOOTH_AUDIO = booleanPreferencesKey("prefer_bluetooth_audio")
         val MEMORY_AUTHORIZED = booleanPreferencesKey("memory_authorized")
         val PERSIST_HISTORY = booleanPreferencesKey("persist_history")
@@ -79,6 +80,7 @@ class UserPreferencesRepository(context: Context) {
                 offlineMode = prefs[Keys.OFFLINE_MODE] ?: false,
                 bargeInEnabled = prefs[Keys.BARGE_IN_ENABLED] ?: true,
                 autoSendVoice = prefs[Keys.AUTO_SEND_VOICE] ?: true,
+                continuousConversation = prefs[Keys.CONTINUOUS_CONVERSATION] ?: false,
                 preferBluetoothAudio = prefs[Keys.PREFER_BLUETOOTH_AUDIO] ?: true,
                 memoryAuthorized = prefs[Keys.MEMORY_AUTHORIZED] ?: true,
                 persistConversationHistory = prefs[Keys.PERSIST_HISTORY] ?: true,
@@ -137,6 +139,10 @@ class UserPreferencesRepository(context: Context) {
 
     suspend fun setAutoSendVoice(enabled: Boolean) {
         dataStore.edit { it[Keys.AUTO_SEND_VOICE] = enabled }
+    }
+
+    suspend fun setContinuousConversation(enabled: Boolean) {
+        dataStore.edit { it[Keys.CONTINUOUS_CONVERSATION] = enabled }
     }
 
     suspend fun setPreferBluetoothAudio(enabled: Boolean) {

@@ -100,6 +100,8 @@
     <string name="settings_auto_speak_desc">Lee automáticamente las respuestas completas de Neptuno usando Android TextToSpeech.</string>
     <string name="settings_auto_send_voice">Enviar automáticamente lo que digo</string>
     <string name="settings_auto_send_voice_desc">Al terminar de hablar, el mensaje se envía solo, sin tocar el botón de enviar.</string>
+    <string name="settings_continuous_conversation">Conversación continua (experimental)</string>
+    <string name="settings_continuous_conversation_desc">Después de responder por voz, NEPTUNO vuelve a escuchar para el siguiente turno. Se detiene tras dos intentos consecutivos sin detectar voz. Cada respuesta puede consumir una solicitud de IA.</string>
     <string name="settings_barge_in">Interrupción de voz (barge-in)</string>
     <string name="settings_barge_in_desc">Permite detener respuestas activas al iniciar nueva entrada de audio.</string>
     <string name="settings_auto_route_bt">Priorizar audio Bluetooth</string>

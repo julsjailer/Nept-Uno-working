@@ -412,6 +412,14 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     SettingsSwitchRow(
+                        title = stringResource(R.string.settings_continuous_conversation),
+                        description = stringResource(R.string.settings_continuous_conversation_desc),
+                        checked = prefs.continuousConversation,
+                        onCheckedChange = viewModel::setContinuousConversation,
+                        testTag = "settings_continuous_conversation_switch"
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    SettingsSwitchRow(
                         title = stringResource(R.string.settings_barge_in),
                         description = stringResource(R.string.settings_barge_in_desc),
                         checked = prefs.bargeInEnabled,

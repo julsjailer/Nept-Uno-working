@@ -185,6 +185,10 @@ class SettingsViewModel(
         preferencesRepository.setAutoSendVoice(enabled)
     }
 
+    fun setContinuousConversation(enabled: Boolean) = viewModelScope.launch {
+        preferencesRepository.setContinuousConversation(enabled)
+    }
+
     fun setPreferBluetoothAudio(enabled: Boolean) = viewModelScope.launch {
         preferencesRepository.setPreferBluetoothAudio(enabled)
     }
