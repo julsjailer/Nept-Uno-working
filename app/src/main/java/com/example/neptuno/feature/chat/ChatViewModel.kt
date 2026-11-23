@@ -624,6 +624,13 @@ class ChatViewModel(
             is SttEvent.FinalTranscript -> {
                 _draftInput.value = mergeVoiceTranscript(voiceBaseDraftPrefix, event.text)
                 voiceBaseDraftPrefix = ""
+                // Envío automático por voz: si está activado, el mensaje dictado se envía sin pulsar el botón.
+                viewModelScope.launch {
+                    val autoSend = preferencesRepository.userPreferences.first().autoSendVoice
+                    if (autoSend && _draftInput.value.isNotBlank()) {
+                        sendMessage()
+                    }
+                }
                 _turnState.update { current ->
                     if (current.statusOverride?.first == AssistantState.LISTENING) {
                         current.copy(statusOverride = null)

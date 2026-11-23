@@ -181,6 +181,10 @@ class SettingsViewModel(
         preferencesRepository.setBargeInEnabled(enabled)
     }
 
+    fun setAutoSendVoice(enabled: Boolean) = viewModelScope.launch {
+        preferencesRepository.setAutoSendVoice(enabled)
+    }
+
     fun setPreferBluetoothAudio(enabled: Boolean) = viewModelScope.launch {
         preferencesRepository.setPreferBluetoothAudio(enabled)
     }

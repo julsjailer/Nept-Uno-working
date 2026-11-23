@@ -79,7 +79,11 @@ class GeminiFirebaseProvider(
 ) : AiProvider {
 
     override val id: String = "gemini_firebase"
-    override val displayName: String = "Gemini (Texto y Streaming)"
+    @Volatile
+    private var lastSuccessfulModel: String? = null
+
+    override val displayName: String
+        get() = lastSuccessfulModel?.let { "Gemini (Texto y Streaming) · $it" } ?: "Gemini (Texto y Streaming)"
     override val capabilities: AiProviderCapabilities = AiProviderCapabilities(
         supportsStreamingText = true,
         supportsBidirectionalAudio = false,
@@ -140,6 +144,7 @@ class GeminiFirebaseProvider(
                     )
                 } else {
                     currentStatus = AiProviderStatus.Ready
+                    lastSuccessfulModel = modelName
                     emit(AiResponseEvent.Completed)
                 }
                 break
@@ -160,14 +165,16 @@ class GeminiFirebaseProvider(
             } catch (e: Exception) {
                 Log.e(TAG, "Gemini streaming failed con $modelName", e)
                 val classified = classifyProviderException(e)
-                if (classified.category == GeminiErrorCategory.QUOTA &&
+                val quotaExhausted = classified.category == GeminiErrorCategory.QUOTA
+                if ((quotaExhausted || isModelOverloaded(e)) &&
                     !receivedAnyChunk &&
                     modelIndex < modelChain.lastIndex
                 ) {
-                    // Cuota agotada en este modelo: probar el siguiente y recordarlo para las próximas consultas.
+                    // Cuota agotada o modelo saturado: probar el siguiente. Solo la cuota (que dura todo el día)
+                    // se recuerda para las próximas consultas; la saturación es pasajera.
                     modelIndex++
-                    startModelIndex = modelIndex
-                    Log.w(TAG, "Cuota agotada; probando ${modelChain[modelIndex]}")
+                    if (quotaExhausted) startModelIndex = modelIndex
+                    Log.w(TAG, "Modelo no disponible; probando ${modelChain[modelIndex]}")
                     continue
                 }
                 if (classified.category == GeminiErrorCategory.QUOTA) {
@@ -251,6 +258,16 @@ class GeminiFirebaseProvider(
         // Código HTTP como número aislado: no debe coincidir dentro de otros números (p. ej. 14030).
         private fun String.hasHttpCode(code: String): Boolean =
             Regex("(?<!\\d)$code(?!\\d)").containsMatchIn(this)
+
+        /** Modelo saturado temporalmente (HTTP 503 / "high demand" / "overloaded"). */
+        fun isModelOverloaded(e: Throwable): Boolean {
+            val raw = generateSequence(e) { it.cause }
+                .mapNotNull { it.localizedMessage ?: it.message }
+                .joinToString(" | ")
+            return raw.hasHttpCode("503") ||
+                raw.contains("high demand", ignoreCase = true) ||
+                raw.contains("overloaded", ignoreCase = true)
+        }
 
         fun classifyProviderException(e: Throwable): ClassifiedGeminiError {
             val raw = generateSequence(e) { it.cause }

@@ -144,6 +144,7 @@ data class UserPreferences(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val offlineMode: Boolean = false,
     val bargeInEnabled: Boolean = true,
+    val autoSendVoice: Boolean = true,
     val preferBluetoothAudio: Boolean = true,
     val memoryAuthorized: Boolean = true,
     val persistConversationHistory: Boolean = true,

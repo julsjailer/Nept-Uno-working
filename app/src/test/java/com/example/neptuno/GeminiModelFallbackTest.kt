@@ -73,4 +73,25 @@ class GeminiModelFallbackTest {
         provider.streamResponse(request()).toList()
         assertEquals(listOf("m1"), tried)
     }
+
+    @Test
+    fun `si un modelo esta saturado se prueba el siguiente pero no se recuerda`() = runBlocking {
+        val tried = mutableListOf<String>()
+        val client = GeminiStreamClient { model, _, _ ->
+            tried += model
+            flow {
+                if (model == "m1") throw IllegalStateException("503 The model is overloaded. High demand, try later")
+                emit("ok desde $model")
+            }
+        }
+        val provider = GeminiFirebaseProvider(streamClient = client, modelChain = listOf("m1", "m2"))
+
+        provider.streamResponse(request()).toList()
+        assertEquals(listOf("m1", "m2"), tried)
+
+        // La saturación es pasajera: la siguiente consulta vuelve a empezar por el primer modelo.
+        tried.clear()
+        provider.streamResponse(request()).toList()
+        assertEquals("m1", tried.first())
+    }
 }

@@ -322,6 +322,14 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     SettingsSwitchRow(
+                        title = stringResource(R.string.settings_auto_send_voice),
+                        description = stringResource(R.string.settings_auto_send_voice_desc),
+                        checked = prefs.autoSendVoice,
+                        onCheckedChange = viewModel::setAutoSendVoice,
+                        testTag = "settings_auto_send_voice_switch"
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    SettingsSwitchRow(
                         title = stringResource(R.string.settings_barge_in),
                         description = stringResource(R.string.settings_barge_in_desc),
                         checked = prefs.bargeInEnabled,

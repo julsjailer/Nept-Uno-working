@@ -174,3 +174,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: APK compilada (verificado en CI); tests corregidos sin verificar hasta el siguiente run. La lógica de cambio de modelo no se ha probado en el teléfono.
 - Para las demás IA: sigue pendiente medir cuántas solicitudes consume cada mensaje.
 
+### 2026-11-23 03:50 · Claude · cambio
+- Qué: El usuario confirmó que Gemini ya responde (primer intento "alta demanda", segundo bien; el modelo se identificó como Gemini 4 Hydrogen). Cambios: (1) el proveedor también pasa al siguiente modelo ante saturación (503/"high demand") sin recordarlo, solo la cuota diaria se recuerda; (2) el nombre del proveedor muestra el último modelo que respondió; (3) nuevo ajuste "Enviar automáticamente lo que digo" (activado por defecto) que envía el mensaje dictado al llegar la transcripción final, sin pulsar enviar. Test nuevo de saturación.
+- Dónde: `GeminiFirebaseProvider.kt`, `ChatViewModel.kt`, `SettingsScreen.kt`, `SettingsViewModel.kt`, `UserPreferencesRepository.kt`, `NeptunoModels.kt`, `strings.xml`, `GeminiModelFallbackTest.kt`.
+- Estado: sin verificar; compilación y tests se comprueban en el siguiente run de CI. Que el modelo diga "Gemini 4 Hydrogen" no es prueba por sí sola (los modelos pueden equivocarse al nombrarse); coincide con la cadena de modelos.
+- Para las demás IA: pendiente evaluar con el usuario: voz más natural (voces neuronales de Google TTS ya instaladas vs. TTS en la nube), conversación continua tipo Gemini Live (Live API de Firebase AI Logic) y activación por "Hey Neptuno" en segundo plano (servicio en primer plano con micrófono + detector de palabra clave, p. ej. Porcupine u openWakeWord/sherpa-onnx). Cada una consume cuota o batería; decidir antes de implementar.
+
