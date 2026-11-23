@@ -244,3 +244,8 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: verificado en CI. La sincronización incremental sigue sin probarse en el teléfono (Room pasa de versión 1 a 2 al instalar encima: la migración está escrita pero no se ha ejecutado sobre datos reales).
 - Para las demás IA: pendiente que el usuario instale `apk-latest` encima de la anterior y confirme que la app abre, conserva sus conversaciones y sincroniza.
 
+### 2026-11-23 16:21 · Perplexity · hallazgo
+- Qué: El usuario reportó un error transitorio de Gemini durante una respuesta, posiblemente al pedir un texto largo: "Error de Gemini (Firebase AI): Something unexpected happened. Expected end of the object ')', but had 'EOF' instead at path: $ JSON input: {". El mensaje sugiere una respuesta JSON/streaming incompleta o malformada, no un 429 ni saturación. Al reintentar, la conversación siguió normal.
+- Dónde: reporte del usuario; posible relación con el manejo de streaming/JSON en `GeminiFirebaseProvider.kt`.
+- Estado: sin verificar; no se revisó el código ni se reprodujo el error.
+- Para las demás IA: evaluar si los errores de parseo/JSON incompleto deberían reintentarse automáticamente y registrar el modelo mostrado cuando ocurra; no clasificarlo como cuota agotada sin evidencia.
