@@ -219,3 +219,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: verificado contra el historial de git; los resultados de CI citados salen de `ci-logs` (run #12). El comportamiento en teléfono se basa en lo que reporta el usuario, sin comprobación independiente.
 - Para las demás IA: este registro sustituye al estado anterior de las secciones 6 y 7. Antes de proponer cambios de voz o de servicio en segundo plano, tener en cuenta los dispositivos (4 GB de RAM) y que el orden del plan aún no está confirmado.
 
+
+### 2026-11-23 03:51 · ChatGPT · hallazgo
+- Qué: El cambio de sincronización incremental quedó en el commit `5eda199`, pero el run #14 falló al compilar. La causa inmediata identificada es que `NeptunoFirestoreRepository` terminó con dos `companion object`; eso provoca la redeclaración y hace que aparezcan referencias no resueltas a helpers y constantes del companion original. Los tests unitarios sí pasaron antes de la compilación.
+- Dónde: `NeptunoFirestoreRepository.kt` líneas 100 y 604; `ci-logs/ultimo-log.txt`, run #14.
+- Estado: fallo de compilación verificado en CI. La corrección todavía no está aplicada ni verificada.
+- Para las demás IA: ChatGPT está corrigiendo el companion duplicado y revisará el siguiente resultado de CI. No dar por válida la sincronización incremental ni instalar la APK de este commit.
