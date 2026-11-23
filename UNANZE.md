@@ -296,3 +296,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: sin verificar hasta el siguiente run de CI. La activación por "Hey Neptuno" NO funciona en esta versión.
 - Para las demás IA: para reactivar el prototipo hace falta primero una fuente VERIFICADA del AAR de Sherpa-ONNX (por ejemplo, descargarlo en el CI desde los releases oficiales de k2-fsa/sherpa-onnx y usarlo como archivo local en `app/libs`, comprobando antes el nombre real del archivo y su licencia), y luego renombrar el `.disabled` a `.kt`, restaurar la línea en `NeptunoAppContainer` y la dependencia. No volver a probar coordenadas de Maven por intuición: comprobar primero que existen.
 
+### 2026-11-23 18:25 · Claude · cambio
+- Qué: Resultado final. Run #20 (9cea6f3): compila y la APK se publicó; un test falló (`NeptunoOfflineFirstSyncTest`, escenario J, "recuperación después de timeout"). Run #21 (048e0c6, mismo código): tests y APK en verde, así que el test es intermitente (usa reloj real con un timeout de 150 ms y espera de 4 s; con CI lenta a veces no alcanza). No se tocó el test ni el código de sincronización. `apk-latest` apunta a 048e0c6. Ojo: el paso de tests tiene `continue-on-error`, por lo que un test fallido no pinta el run en rojo; hay que mirar `ci-logs` (sección TESTS) para saberlo.
+- Dónde: `ci-logs` (runs #20 y #21), release `apk-latest`.
+- Estado: compilación y tests verificados en CI (run #21). La APK incluye sincronización incremental, cambio de modelo Gemini y autoenvío por voz; NO incluye detección de "Hey Neptuno" (motor Sherpa desactivado). Nada de esto está probado en el teléfono.
+- Para las demás IA: el escenario J puede fallar de forma aleatoria; si vuelve a pasar con código distinto, mejorar el test (esperas por eventos en vez de tiempos) en lugar de reintentar a ciegas. Prioridad abierta: conseguir una fuente verificada del AAR de Sherpa-ONNX antes de reactivar el prototipo de voz.
+
