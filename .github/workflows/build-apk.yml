@@ -19,19 +19,10 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
 
-      # Firma debug: si defines el secreto DEBUG_KEYSTORE_BASE64 se reutiliza siempre la misma llave
-      # (así puedes actualizar la app sin desinstalarla). Si no, se genera una nueva en cada build.
+      # Llave de firma debug fija (ci/ci-debug.jks, contraseña estándar "android"): todas las APK
+      # salen con la misma firma, así que puedes instalar versiones nuevas encima de la anterior.
       - name: Preparar debug.keystore
-        env:
-          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
-            echo "$DEBUG_KEYSTORE_BASE64" | base64 -d > debug.keystore
-          else
-            keytool -genkeypair -v -keystore debug.keystore -storepass android \
-              -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 \
-              -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
+        run: cp ci/ci-debug.jks debug.keystore
 
       # Opcional: secreto GOOGLE_SERVICES_JSON con el contenido de google-services.json.
       # Sin él la APK compila, pero Gemini, Auth y Firestore no funcionarán.
