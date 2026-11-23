@@ -498,6 +498,34 @@ class ChatViewModel(
         }
     }
 
+    /** Marca la sesión de voz como iniciada por la frase "Hey Neptuno": el dictado se envía solo al terminar. */
+    private var wakeInitiated = false
+    private val _voiceTurnEnded = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+
+    /** Emite cuando termina un dictado iniciado por voz de activación (para reanudar la escucha de fondo). */
+    val voiceTurnEnded: kotlinx.coroutines.flow.SharedFlow<Unit> = _voiceTurnEnded
+
+    fun startVoiceFromWake() {
+        viewModelScope.launch {
+            wakeInitiated = true
+            val alreadyListening = speechToTextEngine.isListening.value
+            if (!alreadyListening) toggleListeningSession()
+            if (!speechToTextEngine.isListening.value &&
+                _turnState.value.statusOverride?.first != AssistantState.LISTENING
+            ) {
+                // No se pudo empezar a escuchar: se libera la escucha de fondo.
+                finishWakeTurn()
+            }
+        }
+    }
+
+    private fun finishWakeTurn() {
+        if (wakeInitiated) {
+            wakeInitiated = false
+            _voiceTurnEnded.tryEmit(Unit)
+        }
+    }
+
     fun onMicrophonePermissionResult(granted: Boolean) {
         if (!granted) {
             _turnState.update {
@@ -626,10 +654,11 @@ class ChatViewModel(
                 voiceBaseDraftPrefix = ""
                 // Envío automático por voz: si está activado, el mensaje dictado se envía sin pulsar el botón.
                 viewModelScope.launch {
-                    val autoSend = preferencesRepository.userPreferences.first().autoSendVoice
+                    val autoSend = preferencesRepository.userPreferences.first().autoSendVoice || wakeInitiated
                     if (autoSend && _draftInput.value.isNotBlank()) {
                         sendMessage()
                     }
+                    finishWakeTurn()
                 }
                 _turnState.update { current ->
                     if (current.statusOverride?.first == AssistantState.LISTENING) {
@@ -642,6 +671,7 @@ class ChatViewModel(
 
             is SttEvent.Stopped -> {
                 voiceBaseDraftPrefix = ""
+                finishWakeTurn()
                 _turnState.update { current ->
                     if (current.statusOverride?.first == AssistantState.LISTENING) {
                         current.copy(statusOverride = null)
@@ -653,6 +683,7 @@ class ChatViewModel(
 
             is SttEvent.Error -> {
                 voiceBaseDraftPrefix = ""
+                finishWakeTurn()
                 val detail = when {
                     event.isServiceUnavailable -> "Servicio de voz no disponible"
                     event.isNetworkError -> "Sin conexión"

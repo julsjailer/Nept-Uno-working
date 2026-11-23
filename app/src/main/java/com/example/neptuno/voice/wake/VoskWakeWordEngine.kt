@@ -23,7 +23,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import org.vosk.Model
 import org.vosk.Recognizer
 import java.io.File
@@ -83,7 +82,7 @@ class VoskWakeWordEngine(context: Context) : WakeWordEngine {
                     localModel,
                     SAMPLE_RATE.toFloat(),
                     VoskPhraseMatcher.grammarJson(config.keyword)
-                )
+                ).also { it.setWords(true) } // confianza y tiempos por palabra, para filtrar falsos positivos
 
                 val minBuffer = AudioRecord.getMinBufferSize(
                     SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
@@ -139,15 +138,15 @@ class VoskWakeWordEngine(context: Context) : WakeWordEngine {
                     if (_state.value != WakeWordState.LISTENING) break
                     throw IOException("La captura de audio se interrumpió (código $count).")
                 }
-                val isFinal = activeRecognizer.acceptWaveForm(buffer, count)
-                val json = if (isFinal) activeRecognizer.getResult() else activeRecognizer.getPartialResult()
-                val text = VoskJson.text(json)
-                if (text.isBlank()) continue
+                // Solo se miran resultados FINALES (tras una pausa): los parciales de Vosk con gramática reducida
+                // "alucinan" la palabra clave con casi cualquier sonido.
+                if (!activeRecognizer.acceptWaveForm(buffer, count)) continue
+                val json = activeRecognizer.getResult()
 
                 val now = SystemClock.elapsedRealtime()
                 if (
                     now - lastDetectionAt >= DETECTION_COOLDOWN_MS &&
-                    VoskPhraseMatcher.matches(text, config.keyword, config.sensitivity)
+                    VoskPhraseMatcher.matchesResult(json, config.keyword, config.sensitivity)
                 ) {
                     lastDetectionAt = now
                     activeRecognizer.reset()
@@ -176,25 +175,22 @@ class VoskWakeWordEngine(context: Context) : WakeWordEngine {
     }
 }
 
-private object VoskJson {
-    /** Extrae el texto de un resultado de Vosk: {"text": "..."} (final) o {"partial": "..."} (parcial). */
-    fun text(json: String): String = runCatching {
-        val obj = JSONObject(json)
-        obj.optString("text").ifBlank { obj.optString("partial") }
-    }.getOrDefault("")
-}
-
-/** Lógica de gramática y coincidencia, sin dependencias de Android (se prueba con JUnit puro). */
+/** Lógica de gramática y coincidencia (JUnit puro; org.json se usa solo en matchesResult). */
 internal object VoskPhraseMatcher {
     private const val UNKNOWN = "[unk]"
+    private val GREETINGS = listOf("hey", "ey", "oye", "hola")
+
+    /** Duración máxima (segundos) de la frase hablada; una frase más larga es conversación normal, no la activación. */
+    const val MAX_PHRASE_SECONDS = 2.2
 
     /** Palabra principal de la frase: la última ("hey neptuno" -> "neptuno"). */
     fun coreWord(keyword: String): String =
         normalize(keyword).split(' ').lastOrNull { it.isNotBlank() } ?: "neptuno"
 
+    /** Solo frases con saludo + palabra principal: la palabra suelta se disparaba con casi cualquier sonido. */
     fun phrases(keyword: String): List<String> {
         val core = coreWord(keyword)
-        return listOf(normalize(keyword), "hey $core", "ey $core", "oye $core", "hola $core", core)
+        return (listOf(normalize(keyword)) + GREETINGS.map { "$it $core" })
             .filter { it.isNotBlank() }
             .distinct()
     }
@@ -203,18 +199,34 @@ internal object VoskPhraseMatcher {
     fun grammarJson(keyword: String): String =
         (phrases(keyword) + UNKNOWN).joinToString(separator = ",", prefix = "[", postfix = "]") { "\"$it\"" }
 
-    /**
-     * Con sensibilidad alta basta oír la palabra principal; con sensibilidad baja se exige la frase completa
-     * (una palabra de saludo antes de la principal) para evitar falsos positivos.
-     */
-    fun matches(transcript: String, keyword: String, sensitivity: Float): Boolean {
+    /** Confianza mínima por palabra: a más sensibilidad, menos exigente (0.6 -> 0.71). */
+    fun minConfidence(sensitivity: Float): Double =
+        (0.95 - 0.4 * sensitivity.coerceIn(0.1f, 0.95f)).coerceIn(0.5, 0.95)
+
+    /** El texto, sin "[unk]", debe ser exactamente saludo(s) + palabra principal. */
+    fun matches(transcript: String, keyword: String): Boolean {
         val words = normalize(transcript).split(' ').filter { it.isNotBlank() && it != "unk" }
-        val core = coreWord(keyword)
-        val index = words.indexOf(core)
-        if (index < 0) return false
-        if (sensitivity >= 0.5f) return true
-        return index > 0
+        if (words.size < 2) return false
+        return words.last() == coreWord(keyword) && words.dropLast(1).all { it in GREETINGS }
     }
+
+    /** Resultado final de Vosk (con setWords(true)): texto correcto + confianza por palabra + frase corta. */
+    fun matchesResult(json: String, keyword: String, sensitivity: Float): Boolean = runCatching {
+        val obj = org.json.JSONObject(json)
+        if (!matches(obj.optString("text"), keyword)) return@runCatching false
+        val words = obj.optJSONArray("result") ?: return@runCatching false
+        val threshold = minConfidence(sensitivity)
+        var first = Double.MAX_VALUE
+        var last = 0.0
+        for (i in 0 until words.length()) {
+            val w = words.getJSONObject(i)
+            if (normalize(w.optString("word")) == "unk") continue
+            if (w.optDouble("conf", 0.0) < threshold) return@runCatching false
+            first = minOf(first, w.optDouble("start", 0.0))
+            last = maxOf(last, w.optDouble("end", 0.0))
+        }
+        last - first <= MAX_PHRASE_SECONDS
+    }.getOrDefault(false)
 
     fun normalize(value: String): String =
         Normalizer.normalize(value, Normalizer.Form.NFD)

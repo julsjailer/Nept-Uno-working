@@ -29,6 +29,7 @@ import com.example.neptuno.data.local.NeptunoDatabase
 import com.example.neptuno.data.local.UserPreferencesRepository
 import com.example.neptuno.feature.tools.ToolRegistry
 import com.example.neptuno.voice.wake.VoskWakeWordEngine
+import com.example.neptuno.voice.wake.WakeActivationBus
 import com.example.neptuno.voice.wake.WakeWordEngine
 
 /**
@@ -112,6 +113,8 @@ class NeptunoAppContainer(context: Context) {
         // Motor Vosk (local, español). Sin probar en teléfono todavía (ver UNANZE.md).
         VoskWakeWordEngine(appContext)
     }
+
+    val wakeActivationBus: WakeActivationBus by lazy { WakeActivationBus() }
 
     val toolRegistry: ToolRegistry by lazy {
         ToolRegistry()

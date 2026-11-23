@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -141,6 +142,17 @@ fun NeptunoAppShell(
             cloudSyncGateway = cloudSessionViewModel.cloudSyncGateway
         )
     )
+
+    // "Hey Neptuno": el servicio de fondo pide escuchar; el chat dicta y envía solo, y avisa al terminar.
+    LaunchedEffect(chatViewModel, container) {
+        val bus = container.wakeActivationBus
+        launch {
+            bus.pending.collect { requestedAt ->
+                if (requestedAt != null && bus.consume()) chatViewModel.startVoiceFromWake()
+            }
+        }
+        chatViewModel.voiceTurnEnded.collect { bus.notifyTurnEnded() }
+    }
 
     val bluetoothViewModel: BluetoothViewModel = viewModel(
         key = "neptuno_bluetooth",

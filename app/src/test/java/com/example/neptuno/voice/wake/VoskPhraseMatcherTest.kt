@@ -14,34 +14,33 @@ class VoskPhraseMatcherTest {
     }
 
     @Test
-    fun `la gramatica incluye las variantes y unk como lista json`() {
+    fun `la gramatica solo tiene saludo mas palabra principal y unk`() {
         val grammar = VoskPhraseMatcher.grammarJson("Hey Neptuno")
         assertTrue(grammar.startsWith("[") && grammar.endsWith("]"))
         assertTrue(grammar.contains("\"hey neptuno\""))
         assertTrue(grammar.contains("\"oye neptuno\""))
-        assertTrue(grammar.contains("\"neptuno\""))
         assertTrue(grammar.contains("\"[unk]\""))
-        // Sin duplicados: "hey neptuno" aparece una sola vez.
+        assertFalse(grammar.contains("\"neptuno\""))
         assertEquals(1, Regex("\"hey neptuno\"").findAll(grammar).count())
     }
 
     @Test
     fun `detecta la frase con acentos mayusculas y signos`() {
-        assertTrue(VoskPhraseMatcher.matches("Hey, Néptuno!", "Hey Neptuno", 0.6f))
-        assertTrue(VoskPhraseMatcher.matches("oye neptuno", "Hey Neptuno", 0.6f))
+        assertTrue(VoskPhraseMatcher.matches("Hey, Néptuno!", "Hey Neptuno"))
+        assertTrue(VoskPhraseMatcher.matches("oye neptuno", "Hey Neptuno"))
     }
 
     @Test
-    fun `ignora otras frases y el marcador desconocido`() {
-        assertFalse(VoskPhraseMatcher.matches("hola mundo", "Hey Neptuno", 0.6f))
-        assertFalse(VoskPhraseMatcher.matches("[unk]", "Hey Neptuno", 0.6f))
-        assertFalse(VoskPhraseMatcher.matches("", "Hey Neptuno", 0.6f))
+    fun `ignora palabra suelta otras frases y el marcador desconocido`() {
+        assertFalse(VoskPhraseMatcher.matches("neptuno", "Hey Neptuno"))
+        assertFalse(VoskPhraseMatcher.matches("hola mundo", "Hey Neptuno"))
+        assertFalse(VoskPhraseMatcher.matches("[unk] neptuno", "Hey Neptuno"))
+        assertFalse(VoskPhraseMatcher.matches("[unk]", "Hey Neptuno"))
+        assertFalse(VoskPhraseMatcher.matches("", "Hey Neptuno"))
     }
 
     @Test
-    fun `con sensibilidad baja exige un saludo antes de la palabra principal`() {
-        assertTrue(VoskPhraseMatcher.matches("neptuno", "Hey Neptuno", 0.6f))
-        assertFalse(VoskPhraseMatcher.matches("neptuno", "Hey Neptuno", 0.3f))
-        assertTrue(VoskPhraseMatcher.matches("hey neptuno", "Hey Neptuno", 0.3f))
+    fun `la confianza minima baja al subir la sensibilidad`() {
+        assertTrue(VoskPhraseMatcher.minConfidence(0.9f) < VoskPhraseMatcher.minConfidence(0.3f))
     }
 }
