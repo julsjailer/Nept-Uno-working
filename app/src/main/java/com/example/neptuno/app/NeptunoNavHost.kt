@@ -148,7 +148,7 @@ fun NeptunoAppShell(
         val bus = container.wakeActivationBus
         launch {
             bus.pending.collect { requestedAt ->
-                if (requestedAt != null && bus.consume()) chatViewModel.startVoiceFromWake()
+                if (requestedAt != null && bus.consume(maxAgeMillis = 45_000L)) chatViewModel.startVoiceFromWake()
             }
         }
         chatViewModel.voiceTurnEnded.collect { bus.notifyTurnEnded() }
