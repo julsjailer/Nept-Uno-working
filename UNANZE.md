@@ -361,3 +361,11 @@ El archivo trae, en orden: cabecera con run y commit, TESTS (últimas 120 línea
 - Siguiente commit: conecta el motor en `NeptunoAppContainer` (antes `PendingWakeWordEngine`).
 - Estado: **sin verificar en teléfono**. Riesgos: palabra "neptuno" fuera del léxico de Vosk, Android 14 (no se puede abrir la app desde segundo plano), MIUI mata servicios en segundo plano, batería.
 - Al detectar, el servicio solo muestra notificación; abrir el chat y auto-enviar voz es la siguiente fase.
+
+### 2026-11-23 18:30 · Claude · "Hey Neptuno" conectado al chat + detector estricto (run #25, 000526c, verde)
+- Problema reportado por el usuario: el detector saltaba con cualquier sonido y solo mostraba "Frase detectada…".
+- Detector: solo resultados finales (no parciales), gramática solo "hey/ey/oye/hola neptuno" (sin palabra suelta), exige saludo+palabra, confianza por palabra (0.71 con sensibilidad 0.6) y frase ≤ 2.2 s.
+- Flujo nuevo: detección → servicio libera el micrófono (`engine.stop()`) → `WakeActivationBus.request()` → intenta abrir MainActivity (directo + notificación full-screen) → ChatViewModel `startVoiceFromWake()` dicta y envía solo → `voiceTurnEnded` → servicio reanuda la escucha (máx. 45 s de espera).
+- Manifest: USE_FULL_SCREEN_INTENT; MainActivity singleTop/showWhenLocked/turnScreenOn.
+- Estado: **sin verificar en teléfono**. Riesgos: MIUI (permiso "ventanas emergentes en segundo plano" + sin restricción de batería), Android 14, falsos negativos si "neptuno" está fuera del léxico.
+- Pendiente de lo pedido a ChatGPT: voz natural (TTS), conversación continua tipo Live (reabrir micrófono tras la respuesta), reducir uso de cuota de Gemini.
