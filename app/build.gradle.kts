@@ -117,7 +117,10 @@ dependencies {
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   // Sherpa-ONNX: reconocimiento de voz local en español para el prototipo de activación.
-  implementation("com.k2fsa.sherpa.onnx:sherpa-onnx-android:2.0.3")
+  // Sherpa-ONNX DESACTIVADO: ninguna de las direcciones probadas existe (JitPack x2 y Maven Central dan "no encontrado").
+  // Para reactivarlo: añadir aquí una dependencia verificada y renombrar SherpaMoonshineWakeWordEngine.kt.disabled a .kt
+  // (y volver a usarlo en NeptunoAppContainer). Ver UNANZE.md.
+  // implementation("<dependencia verificada de sherpa-onnx>")
   // implementation(libs.logging.interceptor)
   // implementation(libs.moshi.kotlin)
   // implementation(libs.okhttp)
