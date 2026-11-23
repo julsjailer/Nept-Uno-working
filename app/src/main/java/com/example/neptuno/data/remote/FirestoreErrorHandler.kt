@@ -1,6 +1,7 @@
 package com.example.neptuno.data.remote
 
 import android.util.Log
+import com.example.BuildConfig
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
@@ -52,6 +53,14 @@ fun handleFirestoreError(
     }
 
     val jsonString = errorInfoJson.toString()
-    Log.e("FirestoreError", "Firestore Error: $jsonString")
+    if (BuildConfig.DEBUG) {
+        Log.e("FirestoreError", "Firestore Error: $jsonString")
+    } else {
+        // En release no se registran UID ni correo en Logcat.
+        Log.e(
+            "FirestoreError",
+            "Firestore error op=${operationType.value} path=$path error=${rootError.message ?: rootError.javaClass.simpleName}"
+        )
+    }
     return jsonString
 }

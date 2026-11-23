@@ -212,6 +212,13 @@ class GeminiFirebaseProvider(
     }
 
     companion object {
+        // "rate" suelto coincidía con "gene-rate" (p. ej. streamGenerateContent); exigir "rate limit"/"rate-limit"/"rate limited".
+        private val RATE_LIMIT_REGEX = Regex("\\brate[\\s_-]?limit", RegexOption.IGNORE_CASE)
+
+        // Código HTTP como número aislado: no debe coincidir dentro de otros números (p. ej. 14030).
+        private fun String.hasHttpCode(code: String): Boolean =
+            Regex("(?<!\\d)$code(?!\\d)").containsMatchIn(this)
+
         fun classifyProviderException(e: Throwable): ClassifiedGeminiError {
             val raw = generateSequence(e) { it.cause }
                 .mapNotNull { it.localizedMessage ?: it.message }
@@ -220,13 +227,13 @@ class GeminiFirebaseProvider(
             return when {
                 raw.contains("App Check", ignoreCase = true) ||
                     raw.contains("appcheck", ignoreCase = true) ||
-                    raw.contains("403") -> ClassifiedGeminiError(
+                    raw.hasHttpCode("403") -> ClassifiedGeminiError(
                     category = GeminiErrorCategory.APP_CHECK,
                     shortStatus = "Error de App Check (HTTP 403)",
                     userMessage = "Error de Firebase App Check (HTTP 403): la solicitud fue rechazada por seguridad de la app. Puedes seguir usando Neptuno en modo local."
                 )
 
-                raw.contains("401") ||
+                raw.hasHttpCode("401") ||
                     raw.contains("UNAUTHENTICATED", ignoreCase = true) ||
                     raw.contains("auth token", ignoreCase = true) ||
                     raw.contains("credential", ignoreCase = true) -> ClassifiedGeminiError(
@@ -239,17 +246,17 @@ class GeminiFirebaseProvider(
                     raw.contains("not enabled", ignoreCase = true) ||
                     raw.contains("FirebaseApp", ignoreCase = true) ||
                     raw.contains("model", ignoreCase = true) && raw.contains("not found", ignoreCase = true) ||
-                    raw.contains("400") ||
-                    raw.contains("404") -> ClassifiedGeminiError(
+                    raw.hasHttpCode("400") ||
+                    raw.hasHttpCode("404") -> ClassifiedGeminiError(
                     category = GeminiErrorCategory.CONFIG,
                     shortStatus = "Error de configuración",
                     userMessage = "Error de configuración de Gemini / Firebase AI Logic ($raw). Neptuno continúa operativo localmente."
                 )
 
-                raw.contains("429") ||
+                raw.hasHttpCode("429") ||
                     raw.contains("RESOURCE_EXHAUSTED", ignoreCase = true) ||
                     raw.contains("quota", ignoreCase = true) ||
-                    raw.contains("rate", ignoreCase = true) -> ClassifiedGeminiError(
+                    RATE_LIMIT_REGEX.containsMatchIn(raw) -> ClassifiedGeminiError(
                     category = GeminiErrorCategory.QUOTA,
                     shortStatus = "Cuota de Gemini agotada",
                     userMessage = "Se alcanzó temporalmente el límite de cuota de Gemini (HTTP 429). Espera unos momentos antes de reintentar."
