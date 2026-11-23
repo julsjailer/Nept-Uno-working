@@ -47,7 +47,13 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          ./gradlew testDebugUnitTest --no-daemon 2>&1 | tee test.log
+          # Hasta 3 intentos: Maven Central a veces responde 429 (demasiadas peticiones) en los runners.
+          for i in 1 2 3; do
+            ./gradlew testDebugUnitTest --no-daemon --no-configuration-cache 2>&1 | tee -a test.log && exit 0
+            echo "Intento $i fallido, reintentando en 20 s..." | tee -a test.log
+            sleep 20
+          done
+          exit 1
 
       - name: Compilar APK debug
         run: |

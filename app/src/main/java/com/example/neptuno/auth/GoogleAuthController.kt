@@ -40,6 +40,17 @@ internal fun FirebaseAuth.authStateFlow(): Flow<FirebaseUser?> = callbackFlow {
     awaitClose { removeAuthStateListener(listener) }
 }
 
+/**
+ * default_web_client_id lo genera el plugin de google-services a partir de google-services.json.
+ * Se busca por nombre en tiempo de ejecución para que el proyecto compile también sin ese archivo
+ * (en ese caso el inicio de sesión con Google queda desactivado en lugar de romper la compilación).
+ */
+private fun webClientIdOrNull(context: Context): String? {
+    @Suppress("DiscouragedApi")
+    val id = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+    return if (id == 0) null else context.getString(id)
+}
+
 fun attemptAutoSignIn(
     context: Context,
     credentialManager: CredentialManager,
@@ -51,9 +62,7 @@ fun attemptAutoSignIn(
         onAuthSuccess()
         return
     }
-    val clientId = try {
-        context.getString(R.string.default_web_client_id)
-    } catch (_: Exception) {
+    val clientId = webClientIdOrNull(context) ?: run {
         onUnauthenticated()
         return
     }
@@ -93,9 +102,7 @@ fun onGoogleSignInClicked(
     scope: CoroutineScope,
     onAuthCancelled: () -> Unit = {}
 ) {
-    val clientId = try {
-        context.getString(R.string.default_web_client_id)
-    } catch (_: Exception) {
+    val clientId = webClientIdOrNull(context) ?: run {
         onAuthError("Falta la configuración de Google Sign-In (default_web_client_id).")
         return
     }
