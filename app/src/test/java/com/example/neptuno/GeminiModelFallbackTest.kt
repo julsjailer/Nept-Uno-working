@@ -12,7 +12,13 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+// Robolectric: el proveedor usa android.util.Log, que no existe en un test JUnit puro.
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
 class GeminiModelFallbackTest {
 
     private fun request() = AiRequest(1L, "Hola", emptyList(), emptyList(), PersonalityMode.ANALYTICAL, "es")

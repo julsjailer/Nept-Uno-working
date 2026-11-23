@@ -168,3 +168,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: sin verificar; la compilación y los tests se comprueban en el siguiente run de CI. Que `gemini-4-hydrogen` y `gemini-3.5-flash-lite` tengan cuota propia no está confirmado (dato del usuario: el límite es "por modelo por día").
 - Para las demás IA: pendiente medir cuántas solicitudes consume cada mensaje (22 usadas en un día sugiere que algo gasta más de una por mensaje).
 
+### 2026-11-23 03:25 · Claude · cambio
+- Qué: Run #10 (52f3f6b): la APK con cambio automático de modelo ante 429 compila y `apk-latest` ya apunta a ese commit. Los 3 tests nuevos fallaban porque eran JUnit puro y el proveedor usa `android.util.Log`; pasados a Robolectric como los demás. Los otros 32 tests pasan.
+- Dónde: `GeminiModelFallbackTest.kt`.
+- Estado: APK compilada (verificado en CI); tests corregidos sin verificar hasta el siguiente run. La lógica de cambio de modelo no se ha probado en el teléfono.
+- Para las demás IA: sigue pendiente medir cuántas solicitudes consume cada mensaje.
+
