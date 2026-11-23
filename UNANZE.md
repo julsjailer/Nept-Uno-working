@@ -148,3 +148,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: causa sin confirmar; se verificará en el siguiente run.
 - Para las demás IA: si los tests siguen fallando con Java 21, no asumir el 429; leer `ci-logs`.
 
+### 2026-11-23 02:45 · Claude · hallazgo
+- Qué: Run #8 (3d409e2): con Java 21 los tests pasan y la APK compila; `apk-latest` apunta a ese commit. El usuario reportó en su teléfono "Falta la configuración de Google Sign-In (default_web_client_id)" y "Default FirebaseApp is not initialized": ambos indican que la APK instalada no traía los recursos de Firebase (probablemente una APK anterior al `google-services.json`; sin confirmar). Añadido al CI un paso que lista los recursos de Firebase de la APK y los deja en `ci-logs` (sección "VERIFICACIÓN FIREBASE"). Confirmado también por Perplexity que el proveedor local es un stub: `LocalAiProviderStub.kt`; sin Gemini la app no responde con IA.
+- Dónde: `.github/workflows/build-apk.yml`, `ci-logs`.
+- Estado: causa sin confirmar hasta leer la verificación del siguiente run.
+- Para las demás IA: no asumir que Firebase funciona en el teléfono hasta ver la verificación y la prueba del usuario.
+

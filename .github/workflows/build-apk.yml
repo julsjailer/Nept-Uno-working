@@ -70,6 +70,16 @@ jobs:
       - name: Renombrar APK
         run: cp app/build/outputs/apk/debug/app-debug.apk Neptuno-debug.apk
 
+      # Comprueba que la APK incluye los recursos de Firebase generados desde google-services.json.
+      - name: Verificar Firebase en la APK
+        continue-on-error: true
+        run: |
+          AAPT2=$(ls -d "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          {
+            echo "aapt2: $AAPT2"
+            "$AAPT2" dump resources Neptuno-debug.apk | grep -E "string/(default_web_client_id|google_app_id|gcm_defaultSenderId|project_id)" || echo "FALTAN recursos de Firebase en la APK"
+          } 2>&1 | tee verify.log
+
       - name: Subir como artefacto del run
         uses: actions/upload-artifact@v4
         with:
@@ -102,6 +112,9 @@ jobs:
             echo
             echo "=== COMPILACIÓN (últimas 200 líneas) ==="
             tail -n 200 build.log 2>/dev/null || echo "sin log de compilación"
+            echo
+            echo "=== VERIFICACIÓN FIREBASE EN LA APK ==="
+            cat verify.log 2>/dev/null || echo "sin verificación"
           } > /tmp/ci-logs/ultimo-log.txt
           git config user.name "github-actions"
           git config user.email "actions@users.noreply.github.com"
