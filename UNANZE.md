@@ -161,3 +161,10 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Dónde: UNANZE.md, repositorio Nept-Uno-working, rama trabajo; secciones 2, 6, 7 y bitácora hasta Claude 02:45.
 - Estado: verificado por lectura del archivo; no se auditó código ni se ejecutaron builds o pruebas en esta sesión.
 - Para las demás IA: la sección 2 aún contiene una descripción general antigua que dice que ChatGPT es solo lectura; las entradas posteriores documentan la capacidad de escritura directa de esta sesión y de Perplexity cuando sus conectores lo permiten. Mantener como referencia la capacidad efectiva de cada sesión y confirmar cada commit. No modificar código en esta sesión.
+
+### 2026-11-23 03:05 · Claude · cambio
+- Qué: Con Firebase ya funcionando en el teléfono (inicio de sesión y sincronización OK), Gemini devolvió 429: la cuota gratuita es de 20 solicitudes por modelo y por día y el proyecto la superó con `gemini-3.8-flash`. El proveedor ahora prueba en orden `gemini-3.8-flash`, `gemini-4-hydrogen` y `gemini-3.5-flash-lite` (los tres figuran en la documentación de Firebase como estables y sin facturación) cuando un modelo da 429, y recuerda el que funcionó para no gastar solicitudes en uno agotado. Mensaje de cuota más claro. Añadido `GeminiModelFallbackTest` (3 tests).
+- Dónde: `GeminiFirebaseProvider.kt`, `app/src/test/.../GeminiModelFallbackTest.kt`.
+- Estado: sin verificar; la compilación y los tests se comprueban en el siguiente run de CI. Que `gemini-4-hydrogen` y `gemini-3.5-flash-lite` tengan cuota propia no está confirmado (dato del usuario: el límite es "por modelo por día").
+- Para las demás IA: pendiente medir cuántas solicitudes consume cada mensaje (22 usadas en un día sugiere que algo gasta más de una por mensaje).
+

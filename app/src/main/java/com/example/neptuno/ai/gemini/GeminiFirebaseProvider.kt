@@ -20,7 +20,13 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.withTimeout
 
 private const val TAG = "GeminiFirebaseProvider"
-private const val DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+
+/**
+ * Modelos a probar en orden. La cuota gratuita de Gemini se cuenta por modelo y por día, así que
+ * al agotarse uno (HTTP 429) se pasa al siguiente. Los tres figuran en la documentación de
+ * Firebase AI Logic como estables y sin necesidad de facturación.
+ */
+private val DEFAULT_MODEL_CHAIN = listOf("gemini-3.8-flash", "gemini-4-hydrogen", "gemini-3.5-flash-lite")
 private const val STREAM_TIMEOUT_MS = 60_000L
 
 enum class GeminiErrorCategory {
@@ -68,7 +74,8 @@ private object FirebaseAiGeminiStreamClient : GeminiStreamClient {
  */
 class GeminiFirebaseProvider(
     private val streamClient: GeminiStreamClient = FirebaseAiGeminiStreamClient,
-    private val streamTimeoutMs: Long = STREAM_TIMEOUT_MS
+    private val streamTimeoutMs: Long = STREAM_TIMEOUT_MS,
+    private val modelChain: List<String> = DEFAULT_MODEL_CHAIN
 ) : AiProvider {
 
     override val id: String = "gemini_firebase"
@@ -91,60 +98,86 @@ class GeminiFirebaseProvider(
     @Volatile
     private var interruptedByUser: Boolean = false
 
+    // Primer modelo a intentar en la siguiente consulta: evita gastar una solicitud en un modelo ya agotado hoy.
+    @Volatile
+    private var startModelIndex: Int = 0
+
     override fun streamResponse(request: AiRequest): Flow<AiResponseEvent> = flow {
         interruptedByUser = false
         val systemText = buildSystemInstruction(request)
         val promptContents = buildConversationContents(request)
-        var receivedAnyChunk = false
+        var modelIndex = startModelIndex.coerceIn(0, modelChain.lastIndex)
 
-        try {
-            withTimeout(streamTimeoutMs) {
-                streamClient.generateTextStream(
-                    modelName = DEFAULT_GEMINI_MODEL,
-                    systemInstruction = systemText,
-                    contents = promptContents
-                ).collect { delta ->
-                    if (interruptedByUser) {
-                        throw CancellationException("Interrupción solicitada por el usuario.")
-                    }
-                    if (delta.isNotEmpty()) {
-                        receivedAnyChunk = true
-                        emit(AiResponseEvent.TextDelta(delta))
+        while (true) {
+            var receivedAnyChunk = false
+            val modelName = modelChain[modelIndex]
+
+            try {
+                withTimeout(streamTimeoutMs) {
+                    streamClient.generateTextStream(
+                        modelName = modelName,
+                        systemInstruction = systemText,
+                        contents = promptContents
+                    ).collect { delta ->
+                        if (interruptedByUser) {
+                            throw CancellationException("Interrupción solicitada por el usuario.")
+                        }
+                        if (delta.isNotEmpty()) {
+                            receivedAnyChunk = true
+                            emit(AiResponseEvent.TextDelta(delta))
+                        }
                     }
                 }
-            }
 
-            if (interruptedByUser) {
-                emit(AiResponseEvent.Interrupted("Respuesta detenida por el usuario."))
-            } else if (!receivedAnyChunk) {
-                currentStatus = AiProviderStatus.Unavailable("Respuesta vacía de Gemini")
+                if (interruptedByUser) {
+                    emit(AiResponseEvent.Interrupted("Respuesta detenida por el usuario."))
+                } else if (!receivedAnyChunk) {
+                    currentStatus = AiProviderStatus.Unavailable("Respuesta vacía de Gemini")
+                    emit(
+                        AiResponseEvent.Failure(
+                            "Gemini devolvió una respuesta vacía o incompleta. Tus datos locales siguen disponibles; intenta reformular tu mensaje."
+                        )
+                    )
+                } else {
+                    currentStatus = AiProviderStatus.Ready
+                    emit(AiResponseEvent.Completed)
+                }
+                break
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "Gemini streaming timed out", e)
+                currentStatus = AiProviderStatus.Unavailable("Tiempo de espera agotado")
                 emit(
                     AiResponseEvent.Failure(
-                        "Gemini devolvió una respuesta vacía o incompleta. Tus datos locales siguen disponibles; intenta reformular tu mensaje."
+                        "La conexión con Gemini agotó el tiempo de espera. Neptuno sigue operando localmente con Room, voz offline y memoria."
                     )
                 )
-            } else {
-                currentStatus = AiProviderStatus.Ready
-                emit(AiResponseEvent.Completed)
+                break
+            } catch (e: CancellationException) {
+                if (interruptedByUser) {
+                    emit(AiResponseEvent.Interrupted("Respuesta interrumpida por el usuario."))
+                }
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Gemini streaming failed con $modelName", e)
+                val classified = classifyProviderException(e)
+                if (classified.category == GeminiErrorCategory.QUOTA &&
+                    !receivedAnyChunk &&
+                    modelIndex < modelChain.lastIndex
+                ) {
+                    // Cuota agotada en este modelo: probar el siguiente y recordarlo para las próximas consultas.
+                    modelIndex++
+                    startModelIndex = modelIndex
+                    Log.w(TAG, "Cuota agotada; probando ${modelChain[modelIndex]}")
+                    continue
+                }
+                if (classified.category == GeminiErrorCategory.QUOTA) {
+                    // Todos agotados: la próxima consulta vuelve a empezar por el primero (la cuota pudo reiniciarse).
+                    startModelIndex = 0
+                }
+                currentStatus = AiProviderStatus.Unavailable(classified.shortStatus)
+                emit(AiResponseEvent.Failure(classified.userMessage))
+                break
             }
-        } catch (e: TimeoutCancellationException) {
-            Log.e(TAG, "Gemini streaming timed out", e)
-            currentStatus = AiProviderStatus.Unavailable("Tiempo de espera agotado")
-            emit(
-                AiResponseEvent.Failure(
-                    "La conexión con Gemini agotó el tiempo de espera. Neptuno sigue operando localmente con Room, voz offline y memoria."
-                )
-            )
-        } catch (e: CancellationException) {
-            if (interruptedByUser) {
-                emit(AiResponseEvent.Interrupted("Respuesta interrumpida por el usuario."))
-            }
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Gemini streaming failed", e)
-            val classified = classifyProviderException(e)
-            currentStatus = AiProviderStatus.Unavailable(classified.shortStatus)
-            emit(AiResponseEvent.Failure(classified.userMessage))
         }
     }
 
@@ -259,7 +292,7 @@ class GeminiFirebaseProvider(
                     RATE_LIMIT_REGEX.containsMatchIn(raw) -> ClassifiedGeminiError(
                     category = GeminiErrorCategory.QUOTA,
                     shortStatus = "Cuota de Gemini agotada",
-                    userMessage = "Se alcanzó temporalmente el límite de cuota de Gemini (HTTP 429). Espera unos momentos antes de reintentar."
+                    userMessage = "Se alcanzó el límite de uso de Gemini (HTTP 429) en todos los modelos disponibles. En el nivel gratuito el límite es por día: espera unos minutos o vuelve mañana. Neptuno sigue operando localmente."
                 )
 
                 raw.contains("Unable to resolve host", ignoreCase = true) ||
