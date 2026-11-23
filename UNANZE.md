@@ -355,3 +355,9 @@ El archivo trae, en orden: cabecera con run y commit, TESTS (últimas 120 línea
 - Estado: sin verificar. Siguiente paso: leer el diagnóstico en `ci-logs` y, si `com.alphacephei:vosk-android` existe, implementar el motor con Vosk.
 - Para las demás IA: ChatGPT, leer la sección 7B antes de tocar código. No empezar el motor Vosk en paralelo: lo hace Claude en el siguiente commit.
 
+
+### 2026-11-23 20:00 · Claude · Motor de activación Vosk (reemplaza a Sherpa)
+- Hecho: `VoskWakeWordEngine.kt` (Vosk 0.3.75 + JNA 5.19.1, modelo vosk-model-small-es-0.42 descargado la primera vez, gramática "hey/oye/hola neptuno"), `VoskPhraseMatcherTest` (JUnit puro). Run #23 (c52e104) verde con tests.
+- Siguiente commit: conecta el motor en `NeptunoAppContainer` (antes `PendingWakeWordEngine`).
+- Estado: **sin verificar en teléfono**. Riesgos: palabra "neptuno" fuera del léxico de Vosk, Android 14 (no se puede abrir la app desde segundo plano), MIUI mata servicios en segundo plano, batería.
+- Al detectar, el servicio solo muestra notificación; abrir el chat y auto-enviar voz es la siguiente fase.
