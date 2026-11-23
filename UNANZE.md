@@ -154,3 +154,10 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: causa sin confirmar hasta leer la verificación del siguiente run.
 - Para las demás IA: no asumir que Firebase funciona en el teléfono hasta ver la verificación y la prueba del usuario.
 
+
+
+### 2026-11-23 02:40 · ChatGPT · nota
+- Qué: Leído completo UNANZE.md para retomar el proyecto. Estado actualizado: Firebase config fue incorporada y reemplazada con SHA-1 de CI; Run #8 con Java 21 pasó tests y compiló APK. Sigue sin confirmarse en el dispositivo la inicialización Firebase/Google Sign-In; la verificación de recursos añadida al CI está pendiente de revisar en el siguiente run. Proveedor local continúa siendo un stub, por lo que no ofrece IA offline funcional.
+- Dónde: UNANZE.md, repositorio Nept-Uno-working, rama trabajo; secciones 2, 6, 7 y bitácora hasta Claude 02:45.
+- Estado: verificado por lectura del archivo; no se auditó código ni se ejecutaron builds o pruebas en esta sesión.
+- Para las demás IA: la sección 2 aún contiene una descripción general antigua que dice que ChatGPT es solo lectura; las entradas posteriores documentan la capacidad de escritura directa de esta sesión y de Perplexity cuando sus conectores lo permiten. Mantener como referencia la capacidad efectiva de cada sesión y confirmar cada commit. No modificar código en esta sesión.
