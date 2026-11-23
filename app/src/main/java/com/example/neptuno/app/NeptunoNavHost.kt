@@ -352,6 +352,7 @@ private fun NeptunoNavHost(
         composable(NeptunoRoutes.SETTINGS) {
             SettingsScreen(
                 viewModel = settingsViewModel,
+                wakeWordEngine = container.wakeWordEngine,
                 onOpenPersonalization = { navController.navigate(NeptunoRoutes.PERSONALIZATION) },
                 onOpenMemory = { navigateToTopLevel(navController, NeptunoRoutes.MEMORY) },
                 cloudSummary = cloudSummary,

@@ -116,6 +116,8 @@ dependencies {
   implementation(libs.firebase.appcheck.debug)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
+  // Sherpa-ONNX: reconocimiento de voz local en español para el prototipo de activación.
+  implementation("com.github.k2-fsa:sherpa-onnx:v2.0.3")
   // implementation(libs.logging.interceptor)
   // implementation(libs.moshi.kotlin)
   // implementation(libs.okhttp)

@@ -28,7 +28,7 @@ import com.example.neptuno.data.local.MemoryRepository
 import com.example.neptuno.data.local.NeptunoDatabase
 import com.example.neptuno.data.local.UserPreferencesRepository
 import com.example.neptuno.feature.tools.ToolRegistry
-import com.example.neptuno.voice.wake.PendingWakeWordEngine
+import com.example.neptuno.voice.wake.SherpaMoonshineWakeWordEngine
 import com.example.neptuno.voice.wake.WakeWordEngine
 
 /**
@@ -109,7 +109,7 @@ class NeptunoAppContainer(context: Context) {
     }
 
     val wakeWordEngine: WakeWordEngine by lazy {
-        PendingWakeWordEngine()
+        SherpaMoonshineWakeWordEngine(appContext)
     }
 
     val toolRegistry: ToolRegistry by lazy {

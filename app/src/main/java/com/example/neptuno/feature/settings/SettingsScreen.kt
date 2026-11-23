@@ -1,5 +1,8 @@
 package com.example.neptuno.feature.settings
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -32,14 +35,18 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.content.ContextCompat
 import androidx.compose.material3.Button
 import com.example.BuildConfig
 import com.example.R
@@ -47,11 +54,15 @@ import com.example.neptuno.core.model.AiProviderStatus
 import com.example.neptuno.core.model.ThemeMode
 import com.example.neptuno.feature.cloud.CloudAccountSummary
 import com.example.neptuno.feature.cloud.CloudSyncStatus
+import com.example.neptuno.voice.wake.WakeWordEngine
+import com.example.neptuno.voice.wake.WakeWordForegroundService
+import com.example.neptuno.voice.wake.WakeWordState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    wakeWordEngine: WakeWordEngine,
     onOpenPersonalization: () -> Unit,
     onOpenMemory: () -> Unit,
     onNavigateBack: (() -> Unit)? = null,
@@ -64,6 +75,20 @@ fun SettingsScreen(
     onSignOut: (() -> Unit)? = null
 ) {
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val wakeWordState by wakeWordEngine.state.collectAsStateWithLifecycle()
+    val startWakeWordService = {
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, WakeWordForegroundService::class.java)
+                .setAction(WakeWordForegroundService.ACTION_START)
+        )
+    }
+    val microphonePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) startWakeWordService()
+    }
 
     Scaffold(
         topBar = {
@@ -306,6 +331,63 @@ fun SettingsScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // Activación local experimental: no envía audio a Gemini.
+            item {
+                SettingsSectionCard(title = "Activación por voz local") {
+                    val wakeStatus = when (wakeWordState) {
+                        WakeWordState.DISABLED -> "Desactivada"
+                        WakeWordState.UNAVAILABLE_PENDING_MODEL -> "Preparada para descargar el modelo español"
+                        WakeWordState.INITIALIZING -> "Descargando o preparando el modelo…"
+                        WakeWordState.LISTENING -> "Escuchando localmente"
+                        WakeWordState.ERROR -> "Error al iniciar o mantener la escucha"
+                    }
+                    Text(
+                        text = "Estado: $wakeStatus",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (wakeWordState == WakeWordState.ERROR) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Frase inicial: «Hey Neptuno». La primera activación descarga aproximadamente 63 MB. El audio se analiza en este teléfono y no se envía a Gemini. Esta versión detecta la frase y muestra una notificación; todavía no inicia el chat automáticamente.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "El modelo español Moonshine se distribuye bajo una licencia comunitaria de uso no comercial. Revisa su licencia antes de redistribuir NEPTUNO.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                                    PackageManager.PERMISSION_GRANTED
+                                ) startWakeWordService()
+                                else microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            },
+                            enabled = wakeWordState != WakeWordState.LISTENING &&
+                                wakeWordState != WakeWordState.INITIALIZING,
+                            modifier = Modifier.weight(1f).testTag("settings_wake_word_start")
+                        ) { Text("Activar") }
+                        OutlinedButton(
+                            onClick = {
+                                context.startService(
+                                    Intent(context, WakeWordForegroundService::class.java)
+                                        .setAction(WakeWordForegroundService.ACTION_STOP)
+                                )
+                            },
+                            enabled = wakeWordState == WakeWordState.LISTENING ||
+                                wakeWordState == WakeWordState.INITIALIZING ||
+                                wakeWordState == WakeWordState.ERROR,
+                            modifier = Modifier.weight(1f).testTag("settings_wake_word_stop")
+                        ) { Text("Detener") }
                     }
                 }
             }

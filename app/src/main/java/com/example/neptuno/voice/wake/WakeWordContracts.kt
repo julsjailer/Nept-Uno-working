@@ -9,11 +9,13 @@ import kotlinx.coroutines.flow.emptyFlow
 enum class WakeWordState {
     DISABLED,
     UNAVAILABLE_PENDING_MODEL,
-    LISTENING
+    INITIALIZING,
+    LISTENING,
+    ERROR
 }
 
 data class WakeWordConfig(
-    val keyword: String = "Neptuno",
+    val keyword: String = "Hey Neptuno",
     val sensitivity: Float = 0.6f,
     val enabled: Boolean = false
 )
