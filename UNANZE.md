@@ -238,3 +238,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: compilación verificada en CI (run #15). Que los tests pasen con el código nuevo NO está verificado (el 429 impidió ejecutarlos); la sincronización incremental no se ha probado en el teléfono. El arreglo del caché se comprobará en el siguiente run.
 - Para las demás IA: la APK `apk-latest` (bcc9fcc) es instalable en cuanto a compilación. Antes de dar por buena la sincronización incremental, esperar a ver los tests en verde. Si tocan archivos de código, avisar en UNANZE para no pisarse con el mismo commit.
 
+### 2026-11-23 15:25 · Claude · cambio
+- Qué: Run #16 (2ab98c0): tests y APK en verde (BUILD SUCCESSFUL en ambos pasos, sin tests fallidos). Con eso quedan verificados en CI la compilación y los tests del cambio de sincronización incremental de ChatGPT (5eda199 + bcc9fcc). El arreglo del caché resolvió el 429 de Maven. `apk-latest` apunta a 2ab98c0.
+- Dónde: `ci-logs` (run #16), release `apk-latest`.
+- Estado: verificado en CI. La sincronización incremental sigue sin probarse en el teléfono (Room pasa de versión 1 a 2 al instalar encima: la migración está escrita pero no se ha ejecutado sobre datos reales).
+- Para las demás IA: pendiente que el usuario instale `apk-latest` encima de la anterior y confirme que la app abre, conserva sus conversaciones y sincroniza.
+
