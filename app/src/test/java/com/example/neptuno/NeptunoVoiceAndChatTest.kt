@@ -107,6 +107,7 @@ class NeptunoVoiceAndChatTest {
             preferencesRepo.setLanguage(AppLanguage.SPANISH)
             preferencesRepo.setOfflineMode(false)
             preferencesRepo.setBargeInEnabled(true)
+            preferencesRepo.setAutoSendVoice(true)
             preferencesRepo.setMemoryAuthorized(true)
             preferencesRepo.setPersistConversationHistory(true)
             preferencesRepo.setPreferredAiProvider("gemini_firebase")
@@ -131,6 +132,7 @@ class NeptunoVoiceAndChatTest {
         val collector = backgroundScope.launch { vm.uiState.collect {} }
 
         preferencesRepo.setLanguage(AppLanguage.SPANISH)
+        preferencesRepo.setAutoSendVoice(false)
         awaitCondition { vm.uiState.value.activeConversationId != null }
 
         // Iniciar escucha STT
@@ -154,6 +156,29 @@ class NeptunoVoiceAndChatTest {
         awaitCondition { fakeStt.isListening.value }
         vm.onMicrophonePermissionResult(true)
         awaitCondition { !fakeStt.isListening.value }
+
+        collector.cancel()
+    }
+
+    @Test
+    fun `con envio automatico activado la transcripcion final se envia sola`() = runTest(testDispatcher) {
+        val provider = TestStreamingAiProvider(id = "gemini_firebase", chunks = listOf("Ok"))
+        val vm = createChatViewModel(provider)
+        val collector = backgroundScope.launch { vm.uiState.collect {} }
+
+        preferencesRepo.setLanguage(AppLanguage.SPANISH)
+        preferencesRepo.setAutoSendVoice(true)
+        awaitCondition { vm.uiState.value.activeConversationId != null }
+
+        vm.onMicrophonePermissionResult(true)
+        awaitCondition { fakeStt.isListening.value }
+
+        fakeStt.emitEvent(SttEvent.PartialTranscript("Hola Nep"))
+        awaitCondition { vm.draftInput.value == "Hola Nep" }
+
+        // Al llegar el resultado final el mensaje se envía y el borrador queda vacío.
+        fakeStt.emitEvent(SttEvent.FinalTranscript("Hola Neptuno"))
+        awaitCondition { vm.draftInput.value.isEmpty() }
 
         collector.cancel()
     }

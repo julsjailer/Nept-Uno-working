@@ -180,3 +180,9 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 - Estado: sin verificar; compilación y tests se comprueban en el siguiente run de CI. Que el modelo diga "Gemini 4 Hydrogen" no es prueba por sí sola (los modelos pueden equivocarse al nombrarse); coincide con la cadena de modelos.
 - Para las demás IA: pendiente evaluar con el usuario: voz más natural (voces neuronales de Google TTS ya instaladas vs. TTS en la nube), conversación continua tipo Gemini Live (Live API de Firebase AI Logic) y activación por "Hey Neptuno" en segundo plano (servicio en primer plano con micrófono + detector de palabra clave, p. ej. Porcupine u openWakeWord/sherpa-onnx). Cada una consume cuota o batería; decidir antes de implementar.
 
+### 2026-11-23 04:10 · Claude · cambio
+- Qué: Run #12 (70322c1): la APK compila y `apk-latest` ya incluye el envío automático por voz, el cambio de modelo ante saturación y el modelo visible. Un test existente (STT) fallaba porque ahora la transcripción final se envía sola y vacía el borrador; ajustado para probar con el envío automático desactivado y añadido un test del envío automático activado.
+- Dónde: `NeptunoVoiceAndChatTest.kt`.
+- Estado: APK verificada en CI; tests corregidos sin verificar hasta el siguiente run. Sin probar en el teléfono.
+- Para las demás IA: el ajuste se llama "Enviar automáticamente lo que digo" (activado por defecto).
+
