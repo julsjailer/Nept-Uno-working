@@ -3,6 +3,7 @@ package com.example.neptuno
 import com.example.neptuno.ai.api.AiRequest
 import com.example.neptuno.ai.api.AiResponseEvent
 import com.example.neptuno.ai.gemini.GeminiFirebaseProvider
+import com.example.neptuno.ai.gemini.GeminiErrorCategory
 import com.example.neptuno.ai.gemini.GeminiStreamClient
 import com.example.neptuno.core.model.AiProviderStatus
 import com.example.neptuno.core.model.PersonalityMode
@@ -22,6 +23,43 @@ import org.robolectric.annotation.Config
 class GeminiModelFallbackTest {
 
     private fun request() = AiRequest(1L, "Hola", emptyList(), emptyList(), PersonalityMode.ANALYTICAL, "es")
+
+
+    @Test
+    fun `si Firebase corta el JSON despues de enviar texto conserva el fragmento y no reintenta`() = runBlocking {
+        val tried = mutableListOf<String>()
+        val client = GeminiStreamClient { model, _, _ ->
+            tried += model
+            flow {
+                emit("Esta es la parte recibida")
+                throw IllegalStateException(
+                    "Expected end of the object ')', but had 'EOF' instead at path: $ JSON input: {"
+                )
+            }
+        }
+        val provider = GeminiFirebaseProvider(streamClient = client, modelChain = listOf("m1", "m2"))
+
+        val events = provider.streamResponse(request()).toList()
+
+        assertEquals(listOf("m1"), tried)
+        assertEquals("Esta es la parte recibida", (events.first() as AiResponseEvent.TextDelta).text)
+        assertTrue(events.last() is AiResponseEvent.Failure)
+        assertEquals(
+            GeminiErrorCategory.STREAM_TRUNCATED,
+            GeminiFirebaseProvider.classifyProviderException(
+                IllegalStateException("Expected end of the object ')', but had 'EOF' instead at path: $ JSON input: {")
+            ).category
+        )
+    }
+
+    @Test
+    fun `EOF del JSON se clasifica como flujo incompleto y no como cuota`() {
+        val classified = GeminiFirebaseProvider.classifyProviderException(
+            IllegalStateException("Expected end of the object ')', but had 'EOF' instead at path: $ JSON input: {")
+        )
+        assertEquals(GeminiErrorCategory.STREAM_TRUNCATED, classified.category)
+        assertTrue(classified.userMessage.contains("conservó el texto"))
+    }
 
     @Test
     fun `si un modelo agota la cuota se prueba el siguiente y se recuerda`() = runBlocking {
