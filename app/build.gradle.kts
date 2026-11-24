@@ -16,17 +16,10 @@ android {
     applicationId = "com.aistudio.neptuno.k7v9xm"
     minSdk = 29
     targetSdk = 36
-    // GitHub Actions asigna un código creciente para evitar APK nuevas con versión antigua.
-    versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 40
+    versionCode = 1
     versionName = "1.0.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-    // NEPTUNO se distribuye para los teléfonos ARM objetivo (Redmi 9C/10C).
-    // Evita incluir bibliotecas x86/MIPS que aumentan el APK sin aportar compatibilidad a esos equipos.
-    ndk {
-      abiFilters += listOf("arm64-v8a", "armeabi-v7a")
-    }
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
