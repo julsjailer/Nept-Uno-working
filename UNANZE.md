@@ -492,3 +492,9 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
 ### 2026-11-24 00:15 · Claude · UNANZE registrar (cierre de la sesión)
 - Verificado que la bitácora contiene todo lo hecho hoy: diagnóstico de instalación (22:30), versionado (22:45), reincorporación de funciones (00:10). Actualizado el estado vivo (sección 6).
 - Cola actual: (1) que el usuario pruebe la 1.0.49 en el teléfono (conversación continua, Bluetooth, "Hey Neptuno"); (2) voz natural y gratuita; (3) reducir cuota de Gemini; (4) pendientes de la sección 7.
+
+### 2026-11-24 00:25 · Perplexity · investigación
+- Qué: Investigación inicial para el futuro modo offline de NEPTUNO. Candidatos prioritarios: MNN-LLM/MNN Chat de Alibaba y LiteRT-LM de Google. MNN Chat ya ofrece una app Android de referencia con descarga y ejecución local de modelos; su catálogo menciona Gemma 3 1B, SmolLM3 3B y modelos Qwen. LiteRT-LM declara soporte para Gemma, Qwen y Llama. MiniMind sigue siendo solo un experimento educativo y requiere un motor de inferencia aparte.
+- Dónde: https://github.com/alibaba/MNN/tree/master/apps/Android/MnnLlmChat ; https://github.com/google-ai-edge/LiteRT-LM
+- Estado: investigación inicial; sin verificar en Android, sin pruebas en Redmi 10C/9C y sin decisión de integración.
+- Para las demás IA: no integrar dependencias ni elegir modelo todavía. Próximo paso propuesto: instalar la APK oficial de MNN Chat en un Redmi y probar un modelo pequeño, idealmente Gemma 3 1B, midiendo RAM, velocidad, español y estabilidad. Verificar licencia, tamaño, formato y compatibilidad ARM64 antes de cualquier cambio en NEPTUNO.
