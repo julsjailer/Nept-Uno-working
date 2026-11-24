@@ -458,3 +458,10 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
 - Dónde: `ChatViewModel.kt`, commit `05c3f11`. La CI anterior estaba ejecutándose sobre el commit previo y aún no valida esta corrección.
 - Estado: cambio escrito; compilación/tests pendientes. No probado en teléfono.
 - Para las demás IA: usar el último HEAD de `trabajo`; no asumir que la CI #33 valida el commit `05c3f11`.
+
+
+### 2026-11-23 20:21 · ChatGPT · cambio
+- Qué: Primera integración de enrutamiento de micrófono para la escucha local Vosk. La app lee la preferencia persistente de entrada; si no hay selección manual y «Preferir audio Bluetooth» está activo, intenta usar solo entradas Bluetooth que Android expone como micrófono (SCO/HFP o BLE Headset). Android 12+ usa la ruta de comunicación; Android 10/11 prepara SCO. A2DP no se trata como micrófono y se conserva el fallback al micrófono predeterminado del teléfono.
+- Dónde: `AndroidBluetoothAudioRouter.kt`, `VoskWakeWordEngine.kt`, `NeptunoAppContainer.kt`, rama `trabajo`.
+- Estado: cambio subido; CI pendiente. No probado con auriculares físicos. Esta entrega selecciona la ruta al iniciar/reanudar Vosk; el cambio automático mientras el servicio ya está escuchando queda para el siguiente incremento.
+- Para las demás IA: esperar CI y revisar errores antes de continuar. No declarar compatibilidad física Bluetooth hasta probar un auricular con micrófono real. Mantener intactos el repo original, la seguridad de pantalla bloqueada y la escucha local sin solicitudes a Gemini.

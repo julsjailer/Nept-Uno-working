@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import com.example.neptuno.audio.engine.AndroidBluetoothAudioRouter
+import com.example.neptuno.data.local.UserPreferencesRepository
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -44,8 +47,12 @@ import java.util.zip.ZipInputStream
  * Límite conocido (sin probar en teléfono): si una palabra de la gramática no está en el vocabulario del modelo,
  * Vosk la ignora y esa variante no se detectará.
  */
-class VoskWakeWordEngine(context: Context) : WakeWordEngine {
+class VoskWakeWordEngine(
+    context: Context,
+    private val preferencesRepository: UserPreferencesRepository? = null
+) : WakeWordEngine {
     private val appContext = context.applicationContext
+    private val audioRouter = AndroidBluetoothAudioRouter(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
     private val _state = MutableStateFlow(WakeWordState.UNAVAILABLE_PENDING_MODEL)
@@ -70,11 +77,17 @@ class VoskWakeWordEngine(context: Context) : WakeWordEngine {
         if (_state.value == WakeWordState.LISTENING) return Result.success(Unit)
         _state.value = WakeWordState.INITIALIZING
         withContext(Dispatchers.IO) {
-            runCatching {
+            try {
                 check(
                     ContextCompat.checkSelfPermission(appContext, Manifest.permission.RECORD_AUDIO) ==
                         PackageManager.PERMISSION_GRANTED
                 ) { "Debes conceder el permiso de micrófono a NEPTUNO." }
+
+                val audioPreferences = try {
+                    preferencesRepository?.userPreferences?.first()
+                } catch (_: Exception) {
+                    null
+                }
 
                 val modelDirectory = VoskSpanishModel.ensureAvailable(appContext)
                 val localModel = Model(modelDirectory.absolutePath)
@@ -99,6 +112,14 @@ class VoskWakeWordEngine(context: Context) : WakeWordEngine {
                     "No se pudo inicializar el micrófono."
                 }
 
+                // Preferencia explícita del usuario; si no hay selección, usa Bluetooth cuando Android
+                // expone un micrófono compatible. A2DP no se considera entrada de micrófono.
+                audioRouter.configureInput(
+                    recorder = recorder,
+                    preferredInputId = audioPreferences?.preferredAudioInputId,
+                    preferBluetooth = audioPreferences?.preferBluetoothAudio ?: true
+                )
+
                 model = localModel
                 recognizer = localRecognizer
                 audioRecord = recorder
@@ -108,10 +129,12 @@ class VoskWakeWordEngine(context: Context) : WakeWordEngine {
                 }
                 _state.value = WakeWordState.LISTENING
                 listenJob = scope.launch { listenLoop(recorder, localRecognizer) }
-            }.onFailure {
+                Result.success(Unit)
+            } catch (error: Exception) {
                 releaseResources()
                 _state.value = WakeWordState.ERROR
-            }.map { Unit }
+                Result.failure(error)
+            }
         }
     }
 
@@ -159,6 +182,7 @@ class VoskWakeWordEngine(context: Context) : WakeWordEngine {
     }
 
     private fun releaseResources() {
+        audioRouter.release()
         runCatching { audioRecord?.release() }
         audioRecord = null
         runCatching { recognizer?.close() }
