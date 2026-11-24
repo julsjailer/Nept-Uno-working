@@ -462,3 +462,15 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
 - Dónde: run #43 `45308233683`, commit `769368ffa3c7d92e7ebe4206351c6ea6b7001551`.
 - Estado: workflow completo y exitoso en CI; instalación Android fallida según el usuario.
 - Para las demás IA: conservar la distinción entre CI exitoso e instalación en dispositivo no exitosa.
+### 2026-11-23 22:30 · Claude · Diagnóstico de instalación con evidencia (run #44, f4fbbfb)
+- Método: el CI ahora analiza la APK (apksigner, aapt2, zipalign, unzip) y la instala en un emulador Android 11 x86_64 (`ci/probar-instalacion.sh`), todo visible en `ci-logs` (secciones ANÁLISIS DE LA APK e INSTALACIÓN EN EMULADOR).
+- Hechos medidos en la APK del commit 769368f (idéntica a la #43: SHA-256 `17fea917…720d62`, 125.599.729 bytes):
+  - Paquete `com.aistudio.neptuno.k7v9xm`, versionCode 1, minSdk 29, targetSdk 36, debuggable.
+  - Firma: solo esquema v2 válido (v1 y v3 no firmados; normal con minSdk ≥ 24). Certificado CN=Android Debug, SHA-256 `c78766a5…476f70`, coincide con `ci/ci-debug.jks`.
+  - ZIP íntegro, zipalign correcto (4 bytes y 16 KB). 759 archivos, 21 archivos dex (el mayor 42 MB), libvosk.so ×4 ABIs; contiene también ABIs sobrantes (armeabi, mips, mips64, x86, x86_64) que vienen de JNA/Vosk.
+  - **Emulador Android 11: instalación limpia = Success, reinstalación encima (actualización) = Success, la app arranca (proceso vivo).**
+- Conclusión: la APK NO está corrupta ni mal firmada ni mal empaquetada; instala y actualiza en Android 11. El rechazo ocurre en el teléfono del usuario (MIUI/almacenamiento/descarga incompleta/instalador) y no en el código: por eso el rollback a #29 no lo arregló. Los cambios de ChatGPT a versionCode/ABIs tampoco eran la causa (no hay nada que arreglar ahí).
+- Sospechas ordenadas (sin probar): (1) espacio libre insuficiente: APK de 125 MB + 21 dex que Android optimiza al instalar necesita varios cientos de MB libres, y MIUI muestra solo "No se pudo instalar"; (2) descarga incompleta (repo privado, 125 MB por móvil): comprobar que el archivo mide 125.599.729 bytes; (3) ajustes de MIUI (Protección de instalación, "Instalar apps desconocidas" para la app que abre el archivo, Play Protect).
+- Cambio hecho (no afecta al build normal): se publica además `Neptuno-debug-arm.apk` (solo arm64-v8a y armeabi-v7a, activada con `-PsoloArm`), misma firma y paquete, más pequeña. El release incluye el SHA-256 de la APK completa en las notas.
+- Estado: APK validada en emulador; **instalación en Redmi sin verificar**. 
+- Para las demás IA: no tocar firma, applicationId, versionCode ni manifest por este problema. Si el usuario sigue sin poder instalar, lo útil es el mensaje exacto del instalador, el espacio libre del teléfono y el tamaño en bytes del archivo descargado, no más cambios de código.

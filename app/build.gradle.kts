@@ -20,6 +20,13 @@ android {
     versionName = "1.0.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // Variante ligera solo ARM (Redmi 9C/10C): se activa con -PsoloArm; el build normal no cambia.
+    if (project.hasProperty("soloArm")) {
+      ndk {
+        abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+      }
+    }
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
