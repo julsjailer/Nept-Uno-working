@@ -156,6 +156,13 @@ fun NeptunoAppShell(
         }
     }
 
+    // Auriculares Bluetooth: NEPTUNO los reconoce al conectarlos y lo dice en el chat (modo automático).
+    LaunchedEffect(chatViewModel, container) {
+        val watcher = container.bluetoothHeadsetWatcher
+        watcher.start()
+        watcher.announcements.collect { chatViewModel.announceAssistant(it) }
+    }
+
     // "Hey Neptuno": el servicio de fondo pide escuchar; el chat dicta y envía solo, y avisa al terminar.
     LaunchedEffect(chatViewModel, container) {
         val bus = container.wakeActivationBus

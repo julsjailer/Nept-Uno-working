@@ -61,7 +61,7 @@
     <string name="bluetooth_paired_devices">Dispositivos vinculados</string>
     <string name="bluetooth_no_paired_devices">No hay dispositivos Bluetooth vinculados detectados por el sistema.</string>
     <string name="bluetooth_audio_routes">Rutas de audio detectadas</string>
-    <string name="bluetooth_audio_routes_notice">Se muestran los dispositivos reales que expone Android. Al tocar uno se guarda tu preferencia local en DataStore; el cambio activo de ruta de audio se implementará en la fase de Bluetooth y audio.</string>
+    <string name="bluetooth_audio_routes_notice">Elección manual (opcional): al tocar un dispositivo NEPTUNO lo usará siempre para escuchar o hablar. Si no eliges ninguno, el modo automático decide solo según lo conectado.</string>
     <string name="bluetooth_audio_input">Preferencia de entrada de audio</string>
     <string name="bluetooth_audio_output">Preferencia de salida de audio</string>
     <string name="bluetooth_preference_saved">Preferencia guardada</string>

@@ -116,6 +116,10 @@ class NeptunoAppContainer(context: Context) {
 
     val wakeActivationBus: WakeActivationBus by lazy { WakeActivationBus() }
 
+    val bluetoothHeadsetWatcher: com.example.neptuno.audio.engine.BluetoothHeadsetWatcher by lazy {
+        com.example.neptuno.audio.engine.BluetoothHeadsetWatcher(appContext)
+    }
+
     val toolRegistry: ToolRegistry by lazy {
         ToolRegistry()
     }

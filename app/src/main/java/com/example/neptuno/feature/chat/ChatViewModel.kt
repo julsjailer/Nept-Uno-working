@@ -794,7 +794,34 @@ class ChatViewModel(
         }
     }
 
-    private fun speakAssistantResponse(text: String, prefs: UserPreferences) {
+    /** Mensaje propio de NEPTUNO (p. ej. "detecté tus auriculares"): se guarda en el chat y se dice en voz alta. */
+    fun announceAssistant(text: String) {
+        viewModelScope.launch {
+            val prefs = preferencesRepository.userPreferences.first()
+            val conversationId = if (prefs.persistConversationHistory) {
+                conversationRepository.ensureConversationExists(
+                    conversationId = _activeConversationId.value,
+                    defaultTitle = "Sesión principal"
+                ).also { _activeConversationId.value = it }
+            } else {
+                _activeConversationId.value ?: 0L
+            }
+            appendMessage(
+                persist = prefs.persistConversationHistory,
+                message = ChatMessage(
+                    conversationId = conversationId,
+                    sender = MessageSender.ASSISTANT,
+                    content = text,
+                    providerId = "neptuno_system"
+                )
+            )
+            if (prefs.autoSpeakResponses && !_turnState.value.isGeneratingText) {
+                speakAssistantResponse(text.removePrefix("🎧 "), prefs, resumeListening = false)
+            }
+        }
+    }
+
+    private fun speakAssistantResponse(text: String, prefs: UserPreferences, resumeListening: Boolean = true) {
         activeTtsJob?.cancel()
         activeTtsJob = viewModelScope.launch {
             _turnState.update {
@@ -823,7 +850,7 @@ class ChatViewModel(
                     current
                 }
             }
-            scheduleContinuousListening()
+            if (resumeListening) scheduleContinuousListening()
         }
     }
 

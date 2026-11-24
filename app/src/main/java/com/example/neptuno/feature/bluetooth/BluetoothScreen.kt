@@ -123,6 +123,62 @@ fun BluetoothScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Modo automático/híbrido: auricular detectado, prueba de micrófono y vuelta a automático.
+            item {
+                val headsetStatus by com.example.neptuno.audio.engine.BluetoothHeadsetStatus.state
+                    .collectAsStateWithLifecycle()
+                val routeNotice by com.example.neptuno.audio.engine.AudioRouteNotice.state
+                    .collectAsStateWithLifecycle()
+                val testResult by viewModel.micTestResult.collectAsStateWithLifecycle()
+                val testRunning by viewModel.micTestRunning.collectAsStateWithLifecycle()
+                Card(
+                    shape = MaterialTheme.shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth().testTag("bluetooth_auto_card")
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Modo automático + manual",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = headsetStatus ?: "No hay auriculares Bluetooth conectados. NEPTUNO usa el teléfono.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        routeNotice?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = "NEPTUNO detecta los auriculares al conectarlos, los usa solo y vuelve al teléfono si no captan tu voz. " +
+                                "Abajo puedes elegir a mano una entrada o salida concreta; con «Volver a automático» se quita esa elección.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        testResult?.let {
+                            Text(text = it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = viewModel::testMicrophone,
+                                enabled = !testRunning,
+                                modifier = Modifier.weight(1f).testTag("bluetooth_test_mic")
+                            ) { Text("Probar micrófono") }
+                            OutlinedButton(
+                                onClick = viewModel::useAutomaticMode,
+                                modifier = Modifier.weight(1f).testTag("bluetooth_use_auto")
+                            ) { Text("Volver a automático") }
+                        }
+                    }
+                }
+            }
+
             // Tarjeta de estado real del adaptador Bluetooth
             item {
                 Card(

@@ -108,6 +108,86 @@ class BluetoothViewModel(
         _outputRoutes.value = audioRouteManager.getAvailableOutputRoutes()
     }
 
+    private val _micTestResult = MutableStateFlow<String?>(null)
+    val micTestResult: StateFlow<String?> = _micTestResult
+    private val _micTestRunning = MutableStateFlow(false)
+    val micTestRunning: StateFlow<Boolean> = _micTestRunning
+
+    /** Vuelve al modo automático: NEPTUNO elige solo entrada y salida (Bluetooth si funciona, si no el teléfono). */
+    fun useAutomaticMode() {
+        viewModelScope.launch {
+            preferencesRepository.setPreferredAudioInput(null)
+            preferencesRepository.setPreferredAudioOutput(null)
+            preferencesRepository.setPreferBluetoothAudio(true)
+            com.example.neptuno.audio.engine.BluetoothMicHealth.reset()
+            _micTestResult.value = "Modo automático activado: NEPTUNO elige solo el mejor micrófono y altavoz."
+        }
+    }
+
+    /** Graba ~3 s con la ruta que usaría NEPTUNO y dice si realmente llega audio. Habla cuando empiece. */
+    fun testMicrophone() {
+        if (_micTestRunning.value) return
+        if (!PermissionHelper.hasRecordAudioPermission(appContext)) {
+            _micTestResult.value = "Falta el permiso de micrófono."
+            return
+        }
+        _micTestRunning.value = true
+        _micTestResult.value = "Escuchando 3 segundos… habla ahora."
+        viewModelScope.launch {
+            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { runMicrophoneTest() }.getOrElse { "No se pudo probar el micrófono: ${it.localizedMessage}" }
+            }
+            _micTestResult.value = result
+            _micTestRunning.value = false
+        }
+    }
+
+    @android.annotation.SuppressLint("MissingPermission")
+    private suspend fun runMicrophoneTest(): String {
+        val sampleRate = 16_000
+        val minBuffer = android.media.AudioRecord.getMinBufferSize(
+            sampleRate, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT
+        )
+        if (minBuffer <= 0) return "Android no pudo preparar el micrófono."
+        val recorder = android.media.AudioRecord(
+            android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, sampleRate,
+            android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT,
+            maxOf(minBuffer * 2, sampleRate)
+        )
+        val router = com.example.neptuno.audio.engine.AndroidBluetoothAudioRouter(appContext)
+        try {
+            if (recorder.state != android.media.AudioRecord.STATE_INITIALIZED) return "No se pudo abrir el micrófono."
+            val prefs = preferencesRepository.userPreferences.first()
+            val selection = router.configureInput(recorder, prefs.preferredAudioInputId, prefs.preferBluetoothAudio)
+            recorder.startRecording()
+            val buffer = ShortArray(1_600)
+            var peak = 0
+            val end = System.currentTimeMillis() + 3_000
+            while (System.currentTimeMillis() < end) {
+                val n = recorder.read(buffer, 0, buffer.size)
+                if (n <= 0) break
+                for (i in 0 until n) peak = maxOf(peak, kotlin.math.abs(buffer[i].toInt()))
+            }
+            recorder.stop()
+            val percent = peak * 100 / 32_767
+            return when {
+                peak >= 600 -> "✅ Se te oye bien con: ${selection.displayName} (nivel $percent %)."
+                peak >= 4 && selection.isBluetooth ->
+                    "⚠️ Llega muy poco audio por ${selection.displayName} (nivel $percent %). Habla más cerca o prueba el modo automático."
+                peak >= 4 -> "⚠️ Se oye muy bajo con: ${selection.displayName} (nivel $percent %). Habla más cerca."
+                selection.isBluetooth -> {
+                    com.example.neptuno.audio.engine.BluetoothMicHealth.markFailed()
+                    "❌ Los auriculares no envían audio (silencio total). NEPTUNO usará el micrófono del teléfono unos minutos. " +
+                        "Prueba apagar y encender los auriculares, o que Android los use como \"llamadas\" y no solo \"multimedia\"."
+                }
+                else -> "❌ No llega audio con: ${selection.displayName}. Revisa el permiso de micrófono y que ninguna otra app lo use."
+            }
+        } finally {
+            runCatching { recorder.release() }
+            router.release()
+        }
+    }
+
     fun selectInputRoute(deviceId: Int) {
         viewModelScope.launch {
             preferencesRepository.setPreferredAudioInput(deviceId)
