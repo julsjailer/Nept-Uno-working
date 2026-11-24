@@ -81,9 +81,18 @@ class WakeWordForegroundService : Service() {
         val bus = (application as NeptunoApplication).appContainer.wakeActivationBus
         bus.request()
         updateNotification("Frase detectada. Toca esta notificación y desbloquea el teléfono para hablar.")
-        // Si el usuario abre el chat, este consume la solicitud y avisa al terminar el dictado.
-        // Si no lo abre dentro del plazo, el servicio reanuda la detección local sin abrir la pantalla.
-        kotlinx.coroutines.withTimeoutOrNull(RESUME_TIMEOUT_MS) { bus.turnEnded.first() }
+        // Si no se abre la notificación, reanuda el detector tras 45 s.
+        // Si el chat consume la activación, mantiene Vosk detenido durante toda la conversación
+        // (incluida la generación y el TTS) para que no compita por el micrófono.
+        val opened = kotlinx.coroutines.withTimeoutOrNull(RESUME_TIMEOUT_MS) {
+            bus.consumed.first { it }
+            true
+        } ?: false
+        if (opened) {
+            kotlinx.coroutines.withTimeoutOrNull(ACTIVE_SESSION_TIMEOUT_MS) { bus.turnEnded.first() }
+        } else {
+            kotlinx.coroutines.withTimeoutOrNull(RESUME_TIMEOUT_MS) { bus.turnEnded.first() }
+        }
         kotlinx.coroutines.delay(1_500)
         val result = wakeEngine.start()
         if (result.isSuccess) {
@@ -150,5 +159,6 @@ class WakeWordForegroundService : Service() {
         private const val CHANNEL_ID = "neptuno_wake_word"
         private const val NOTIFICATION_ID = 7204
         private const val RESUME_TIMEOUT_MS = 45_000L
+        private const val ACTIVE_SESSION_TIMEOUT_MS = 10 * 60_000L
     }
 }
