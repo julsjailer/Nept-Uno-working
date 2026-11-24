@@ -120,7 +120,6 @@ jobs:
         run: |
           gh release delete apk-latest --cleanup-tag --yes || true
           gh release create apk-latest Neptuno-debug.apk \
-            --prerelease \
             --target "$GITHUB_SHA" \
             --title "APK debug (último build)" \
             --notes "Build automático de la rama ${GITHUB_REF_NAME}, commit ${GITHUB_SHA::7}."
