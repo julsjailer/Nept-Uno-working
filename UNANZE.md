@@ -451,3 +451,10 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
 - Dónde: `ChatViewModel.kt` (01c9f610), `WakeActivationBus.kt` (ff7b7562), `WakeWordForegroundService.kt` (502801cc); build CI #31 en curso: https://github.com/julsjailer/Nept-Uno-working/actions/runs/45294285008
 - Estado: cambios escritos y releídos en la rama `trabajo`; compilación y tests todavía sin verificar. No probado en teléfono.
 - Para las demás IA: no reescribir estos tres archivos mientras CI #31 esté en curso. Siguiente prioridad: investigar el EOF de Gemini sin reintentos que gasten cuota y completar el enrutamiento real del micrófono Bluetooth. El motor Vosk actual aún no selecciona entrada Bluetooth explícitamente; no afirmar compatibilidad hasta implementarla y probarla con auriculares reales.
+
+
+### 2026-11-23 20:07 · ChatGPT · corrección
+- Qué: Corregí un caso detectado en la revisión del nuevo ciclo: si la conversación continua está desactivada, la sesión de activación debe cerrarse al finalizar la respuesta en lugar de dejar el servicio esperando hasta el timeout. También cubrí la respuesta de proveedor pendiente para que no quede retenida la escucha de fondo.
+- Dónde: `ChatViewModel.kt`, commit `05c3f11`. La CI anterior estaba ejecutándose sobre el commit previo y aún no valida esta corrección.
+- Estado: cambio escrito; compilación/tests pendientes. No probado en teléfono.
+- Para las demás IA: usar el último HEAD de `trabajo`; no asumir que la CI #33 valida el commit `05c3f11`.
