@@ -35,6 +35,7 @@ enum class GeminiErrorCategory {
     CONFIG,
     QUOTA,
     NETWORK,
+    STREAM_TRUNCATED,
     UNKNOWN
 }
 
@@ -165,6 +166,10 @@ class GeminiFirebaseProvider(
             } catch (e: Exception) {
                 Log.e(TAG, "Gemini streaming failed con $modelName", e)
                 val classified = classifyProviderException(e)
+                if (classified.category == GeminiErrorCategory.STREAM_TRUNCATED) {
+                    // No reintentar: el SDK ya pudo entregar texto y una segunda solicitud consumiría cuota.
+                    Log.w(TAG, "Gemini stream incompleto en $modelName; chunks recibidos: $receivedAnyChunk")
+                }
                 val quotaExhausted = classified.category == GeminiErrorCategory.QUOTA
                 if ((quotaExhausted || isModelOverloaded(e)) &&
                     !receivedAnyChunk &&
@@ -259,6 +264,14 @@ class GeminiFirebaseProvider(
         private fun String.hasHttpCode(code: String): Boolean =
             Regex("(?<!\\d)$code(?!\\d)").containsMatchIn(this)
 
+        /** Detecta el EOF del parser de Firebase AI Logic sin confundirlo con cuota o red. */
+        fun isTruncatedStream(raw: String): Boolean {
+            val normalized = raw.lowercase()
+            return normalized.contains("expected end of the object") ||
+                normalized.contains("had 'eof' instead") ||
+                (normalized.contains("json input") && normalized.contains("eof"))
+        }
+
         /** Modelo saturado temporalmente (HTTP 503 / "high demand" / "overloaded"). */
         fun isModelOverloaded(e: Throwable): Boolean {
             val raw = generateSequence(e) { it.cause }
@@ -310,6 +323,12 @@ class GeminiFirebaseProvider(
                     category = GeminiErrorCategory.QUOTA,
                     shortStatus = "Cuota de Gemini agotada",
                     userMessage = "Se alcanzó el límite de uso de Gemini (HTTP 429) en todos los modelos disponibles. En el nivel gratuito el límite es por día: espera unos minutos o vuelve mañana. Neptuno sigue operando localmente."
+                )
+
+                isTruncatedStream(raw) -> ClassifiedGeminiError(
+                    category = GeminiErrorCategory.STREAM_TRUNCATED,
+                    shortStatus = "Respuesta incompleta de Gemini",
+                    userMessage = "Gemini interrumpió el flujo de respuesta antes de completarlo. Neptuno conservó el texto que ya había recibido; puedes pedir que continúe desde el último punto."
                 )
 
                 raw.contains("Unable to resolve host", ignoreCase = true) ||
