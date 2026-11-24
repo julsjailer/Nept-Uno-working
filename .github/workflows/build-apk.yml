@@ -123,7 +123,7 @@ jobs:
           {
             echo "build-tools: $BT"
             echo "--- tamaño y SHA-256"
-            ls -l Neptuno-debug.apk; sha256sum Neptuno-debug.apk
+            ls -l Neptuno-debug.apk Neptuno-debug-arm.apk 2>&1; sha256sum Neptuno-debug.apk
             echo "--- apksigner verify"
             "$BT/apksigner" verify --verbose --print-certs Neptuno-debug.apk 2>&1 | head -30
             echo "--- aapt2 badging (paquete, versión, SDK, ABIs, permisos)"
@@ -186,6 +186,8 @@ jobs:
       - name: Probar instalación en emulador
         continue-on-error: true
         timeout-minutes: 25
+        env:
+          GH_TOKEN: ${{ github.token }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
