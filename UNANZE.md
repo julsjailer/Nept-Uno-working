@@ -52,7 +52,7 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 
 ## 6. Estado vivo (se actualiza)
 
-**Última actualización:** 2026-11-23 22:02 · ChatGPT (relevo solicitado por el usuario a Claude; ver sección 8).
+**Última actualización:** 2026-11-24 00:15 · Claude. Última versión: 1.0.49 (9d25b66), CI verde, incluye conversación continua, micrófono Bluetooth y fix de Gemini truncado; sin probar en teléfono. Pendientes: voz natural, menos cuota de Gemini.
 
 
 **Incidencia crítica vigente — instalación de APK (2026-11-23 22:02 Caracas):** el usuario confirma que la APK #43 tampoco se instala. El fallo persiste tanto al intentar actualizar la instalación existente como al intentar una instalación limpia después de desinstalar (reporte anterior del usuario; Android mostró el mensaje genérico «No se pudo instalar la aplicación»). La compilación y publicación correctas NO resuelven ni explican el fallo de instalación. No hay aún código de error de Package Installer, registro de PackageManager ni huella de certificado obtenida del APK instalado. **No afirmar que el problema está resuelto ni cambiar a ciegas `applicationId`, `versionCode`, `minSdk`, firma/keystore, ABI o configuración Gradle.** Claude debe tomar el diagnóstico desde evidencia del APK y del dispositivo.
@@ -488,3 +488,7 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
   2. **v1.0.48 (7bc6123)**: conversación continua (preferencia en Ajustes, señal de consumo del wake, el detector espera durante la conversación, cierre tras respuesta de un solo turno).
   3. **v1.0.49 (9d25b66)**: micrófono Bluetooth (`AndroidBluetoothAudioRouter`; escucha local y dictado por micrófonos Bluetooth compatibles; cambio de entrada al conectar/retirar micrófonos).
 - Estado: compila, tests y emulador verdes; **sin probar en el teléfono** (conversación continua, Bluetooth y wake). Si algo falla, volver con un commit de revert de la función concreta (sale como versión nueva).
+
+### 2026-11-24 00:15 · Claude · UNANZE registrar (cierre de la sesión)
+- Verificado que la bitácora contiene todo lo hecho hoy: diagnóstico de instalación (22:30), versionado (22:45), reincorporación de funciones (00:10). Actualizado el estado vivo (sección 6).
+- Cola actual: (1) que el usuario pruebe la 1.0.49 en el teléfono (conversación continua, Bluetooth, "Hey Neptuno"); (2) voz natural y gratuita; (3) reducir cuota de Gemini; (4) pendientes de la sección 7.
