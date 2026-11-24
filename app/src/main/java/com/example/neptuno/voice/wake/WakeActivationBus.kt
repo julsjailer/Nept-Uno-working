@@ -17,8 +17,12 @@ class WakeActivationBus {
     private val _turnEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
     val turnEnded: SharedFlow<Unit> = _turnEnded
 
+    private val _consumed = MutableStateFlow(false)
+    val consumed: StateFlow<Boolean> = _consumed.asStateFlow()
+
     /** Un servicio pide que el chat empiece a escuchar. */
     fun request(nowMillis: Long = System.currentTimeMillis()) {
+        _consumed.value = false
         _pending.value = nowMillis
     }
 
@@ -26,7 +30,9 @@ class WakeActivationBus {
     fun consume(nowMillis: Long = System.currentTimeMillis(), maxAgeMillis: Long = 15_000L): Boolean {
         val requestedAt = _pending.value ?: return false
         _pending.value = null
-        return nowMillis - requestedAt <= maxAgeMillis
+        val isFresh = nowMillis - requestedAt <= maxAgeMillis
+        if (isFresh) _consumed.value = true
+        return isFresh
     }
 
     fun notifyTurnEnded() {
