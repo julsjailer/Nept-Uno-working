@@ -3,11 +3,14 @@ package com.example.neptuno.voice.wake
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioDeviceCallback
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import com.example.neptuno.audio.engine.AndroidBluetoothAudioRouter
 import com.example.neptuno.data.local.UserPreferencesRepository
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +68,8 @@ class VoskWakeWordEngine(
     private var recognizer: Recognizer? = null
     private var audioRecord: AudioRecord? = null
     private var listenJob: Job? = null
+    private var audioDeviceCallback: AudioDeviceCallback? = null
+    @Volatile private var lastInputSignature: String = ""
 
     override suspend fun configure(config: WakeWordConfig) {
         this.config = config.copy(
@@ -127,6 +132,10 @@ class VoskWakeWordEngine(
                 check(recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                     "Android no inició la captura de audio."
                 }
+                lastInputSignature = audioRouter.currentInputSignature()
+                audioDeviceCallback = audioRouter.registerInputDeviceCallback {
+                    scheduleInputRouteRefresh()
+                }
                 _state.value = WakeWordState.LISTENING
                 listenJob = scope.launch { listenLoop(recorder, localRecognizer) }
                 Result.success(Unit)
@@ -141,6 +150,8 @@ class VoskWakeWordEngine(
     override suspend fun stop() {
         mutex.withLock {
             _state.value = WakeWordState.DISABLED
+            audioRouter.unregisterInputDeviceCallback(audioDeviceCallback)
+            audioDeviceCallback = null
             runCatching {
                 audioRecord?.let {
                     if (it.recordingState == AudioRecord.RECORDSTATE_RECORDING) it.stop()
@@ -148,6 +159,69 @@ class VoskWakeWordEngine(
             }
             listenJob?.cancelAndJoin()
             releaseResources()
+        }
+    }
+
+    /**
+     * Reinicia únicamente AudioRecord cuando Android informa una entrada añadida o retirada.
+     * El reconocedor Vosk y el modelo se conservan, evitando descargar/recrear el modelo en cada cambio.
+     */
+    private fun scheduleInputRouteRefresh() {
+        scope.launch {
+            kotlinx.coroutines.delay(INPUT_CHANGE_DEBOUNCE_MS)
+            mutex.withLock {
+                if (_state.value != WakeWordState.LISTENING) return@withLock
+                val newSignature = audioRouter.currentInputSignature()
+                if (newSignature == lastInputSignature) return@withLock
+
+                val activeRecognizer = recognizer ?: return@withLock
+                _state.value = WakeWordState.INITIALIZING
+                runCatching {
+                    audioRecord?.let { old ->
+                        if (old.recordingState == AudioRecord.RECORDSTATE_RECORDING) old.stop()
+                    }
+                }
+                listenJob?.cancelAndJoin()
+                runCatching { audioRecord?.release() }
+                audioRecord = null
+
+                try {
+                    val prefs = runCatching { preferencesRepository?.userPreferences?.first() }.getOrNull()
+                    val minBuffer = AudioRecord.getMinBufferSize(
+                        SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
+                    )
+                    check(minBuffer > 0) { "Android no pudo calcular el búfer del micrófono." }
+                    val replacement = AudioRecord(
+                        MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                        SAMPLE_RATE,
+                        AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT,
+                        maxOf(minBuffer * 2, SAMPLE_RATE)
+                    )
+                    check(replacement.state == AudioRecord.STATE_INITIALIZED) {
+                        "No se pudo reinicializar el micrófono tras cambiar el dispositivo."
+                    }
+                    audioRouter.configureInput(
+                        recorder = replacement,
+                        preferredInputId = prefs?.preferredAudioInputId,
+                        preferBluetooth = prefs?.preferBluetoothAudio ?: true
+                    )
+                    replacement.startRecording()
+                    check(replacement.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                        "Android no reanudó la captura tras cambiar el dispositivo de audio."
+                    }
+                    activeRecognizer.reset()
+                    audioRecord = replacement
+                    lastInputSignature = audioRouter.currentInputSignature()
+                    _state.value = WakeWordState.LISTENING
+                    listenJob = scope.launch { listenLoop(replacement, activeRecognizer) }
+                } catch (error: Exception) {
+                    audioRouter.release()
+                    runCatching { audioRecord?.release() }
+                    audioRecord = null
+                    _state.value = WakeWordState.ERROR
+                }
+            }
         }
     }
 
@@ -182,6 +256,8 @@ class VoskWakeWordEngine(
     }
 
     private fun releaseResources() {
+        audioRouter.unregisterInputDeviceCallback(audioDeviceCallback)
+        audioDeviceCallback = null
         audioRouter.release()
         runCatching { audioRecord?.release() }
         audioRecord = null
@@ -196,6 +272,7 @@ class VoskWakeWordEngine(
         private const val SAMPLE_RATE = 16_000
         private const val CHUNK_SAMPLES = 1_600
         private const val DETECTION_COOLDOWN_MS = 3_000L
+        private const val INPUT_CHANGE_DEBOUNCE_MS = 300L
     }
 }
 

@@ -1,10 +1,13 @@
 package com.example.neptuno.audio.engine
 
 import android.content.Context
+import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -137,6 +140,34 @@ class AndroidBluetoothAudioRouter(context: Context) {
         val name = device.productName?.toString()?.takeIf { it.isNotBlank() }
             ?: if (bluetooth) "Micrófono Bluetooth" else "Micrófono externo"
         return AudioInputRouteSelection(name, bluetooth)
+    }
+
+    /** Firma de las entradas visibles para detectar conexiones/desconexiones reales. */
+    fun currentInputSignature(): String =
+        audioManager?.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            ?.sortedBy { it.id }
+            ?.joinToString("|") { "${it.id}:${it.type}:${it.productName}" }
+            .orEmpty()
+
+    /** Observa cambios de dispositivos de audio; el propietario debe desregistrar el callback. */
+    fun registerInputDeviceCallback(onDevicesChanged: () -> Unit): AudioDeviceCallback? {
+        val manager = audioManager ?: return null
+        val callback = object : AudioDeviceCallback() {
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+                onDevicesChanged()
+            }
+
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+                onDevicesChanged()
+            }
+        }
+        manager.registerAudioDeviceCallback(callback, Handler(Looper.getMainLooper()))
+        return callback
+    }
+
+    fun unregisterInputDeviceCallback(callback: AudioDeviceCallback?) {
+        if (callback == null) return
+        runCatching { audioManager?.unregisterAudioDeviceCallback(callback) }
     }
 
     fun release() {

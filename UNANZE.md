@@ -465,3 +465,10 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
 - Dónde: `AndroidBluetoothAudioRouter.kt`, `VoskWakeWordEngine.kt`, `NeptunoAppContainer.kt`, rama `trabajo`.
 - Estado: cambio subido; CI pendiente. No probado con auriculares físicos. Esta entrega selecciona la ruta al iniciar/reanudar Vosk; el cambio automático mientras el servicio ya está escuchando queda para el siguiente incremento.
 - Para las demás IA: esperar CI y revisar errores antes de continuar. No declarar compatibilidad física Bluetooth hasta probar un auricular con micrófono real. Mantener intactos el repo original, la seguridad de pantalla bloqueada y la escucha local sin solicitudes a Gemini.
+
+
+### 2026-11-23 20:26 · ChatGPT · cambio
+- Qué: Añadida observación de cambios de dispositivos de audio Android durante la escucha Vosk. Al detectar una entrada añadida/retirada, se compara la lista real de entradas y, si cambió, se reinicia solo AudioRecord con las preferencias vigentes y se conserva el modelo/reconocedor Vosk. Se desregistra el callback al detener/liberar el motor.
+- Dónde: `AndroidBluetoothAudioRouter.kt`, `VoskWakeWordEngine.kt`, rama `trabajo`.
+- Estado: cambio preparado para commit y CI; todavía no compilado ni probado con auriculares físicos. Android debe exponer el micrófono Bluetooth como entrada para que el cambio automático sea posible.
+- Para las demás IA: validar CI; revisar cancelación/reinicio de AudioRecord y que la retirada Bluetooth vuelva al micrófono del teléfono. No declarar prueba física. No alterar el flujo de bloqueo ni activar Gemini por mantener el micrófono escuchando.
