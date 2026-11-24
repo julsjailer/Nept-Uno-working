@@ -346,10 +346,7 @@ class AndroidTextToSpeechEngine(
                     !it.isNetworkConnectionRequired && it.quality >= Voice.QUALITY_NORMAL
                 } ?: matchingLanguage.first()
             }
-            else -> {
-                matchingLanguage.firstOrNull { !it.isNetworkConnectionRequired }
-                    ?: matchingLanguage.first()
-            }
+            else -> VoiceRanking.best(matchingLanguage) ?: matchingLanguage.first()
         }
     }
 
@@ -363,5 +360,25 @@ class AndroidTextToSpeechEngine(
         "en" -> Locale.US
         "pt" -> Locale("pt", "BR")
         else -> Locale.forLanguageTag(code)
+    }
+}
+
+/** Elige la voz que suene más natural entre las instaladas (mayor calidad; en empate, español latino y voces de red). */
+internal object VoiceRanking {
+    private val REGION_ORDER = listOf("US", "MX", "419", "CO", "AR", "VE", "CL", "PE", "ES")
+
+    fun best(voices: Collection<Voice>): Voice? = voices.maxWithOrNull(
+        compareBy<Voice>(
+            { it.quality },
+            { regionScore(it.locale) },
+            // Las voces neuronales de Google suelen ser "de red"; si no hay internet Android usa la local.
+            { if (it.isNetworkConnectionRequired) 1 else 0 },
+            { it.name }
+        )
+    )
+
+    private fun regionScore(locale: Locale): Int {
+        val index = REGION_ORDER.indexOf(locale.country.uppercase())
+        return if (index < 0) 0 else REGION_ORDER.size - index
     }
 }

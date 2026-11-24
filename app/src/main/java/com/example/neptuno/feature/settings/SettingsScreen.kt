@@ -395,6 +395,25 @@ fun SettingsScreen(
             // Preferencias de audio
             item {
                 SettingsSectionCard(title = stringResource(R.string.settings_audio)) {
+                    Text(
+                        text = "Voz más natural (gratis): NEPTUNO elige sola la mejor voz en español instalada. " +
+                            "Para tener voces más humanas, abre los ajustes de síntesis de voz, entra en el motor " +
+                            "de Google y descarga una voz en español de alta calidad.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            val tts = Intent("com.android.settings.TTS_SETTINGS")
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            val fallback = Intent(android.provider.Settings.ACTION_SETTINGS)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            runCatching { context.startActivity(tts) }
+                                .onFailure { runCatching { context.startActivity(fallback) } }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("settings_improve_voice")
+                    ) { Text("Mejorar la voz del asistente") }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     SettingsSwitchRow(
                         title = stringResource(R.string.settings_auto_speak),
                         description = stringResource(R.string.settings_auto_speak_desc),
