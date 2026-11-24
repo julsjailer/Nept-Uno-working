@@ -88,7 +88,7 @@ class NeptunoAppContainer(context: Context) {
     }
 
     val speechToTextEngine: SpeechToTextEngine by lazy {
-        AndroidSpeechToTextEngine(appContext)
+        AndroidSpeechToTextEngine(appContext, preferencesRepository)
     }
 
     val textToSpeechEngine: TextToSpeechEngine by lazy {
