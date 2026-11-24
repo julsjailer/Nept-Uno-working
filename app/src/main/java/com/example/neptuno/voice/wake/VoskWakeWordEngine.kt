@@ -8,6 +8,8 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import com.example.neptuno.audio.engine.AndroidBluetoothAudioRouter
+import com.example.neptuno.audio.engine.AudioRouteNotice
+import com.example.neptuno.audio.engine.BluetoothMicHealth
 import com.example.neptuno.data.local.UserPreferencesRepository
 import android.os.Handler
 import android.os.Looper
@@ -64,6 +66,7 @@ class VoskWakeWordEngine(
     override fun detections(): SharedFlow<Long> = _detections.asSharedFlow()
 
     @Volatile private var config = WakeWordConfig()
+    @Volatile private var routeIsBluetooth = false
     private var model: Model? = null
     private var recognizer: Recognizer? = null
     private var audioRecord: AudioRecord? = null
@@ -119,11 +122,12 @@ class VoskWakeWordEngine(
 
                 // Preferencia explícita del usuario; si no hay selección, usa Bluetooth cuando Android
                 // expone un micrófono compatible. A2DP no se considera entrada de micrófono.
-                audioRouter.configureInput(
+                val selection = audioRouter.configureInput(
                     recorder = recorder,
                     preferredInputId = audioPreferences?.preferredAudioInputId,
                     preferBluetooth = audioPreferences?.preferBluetoothAudio ?: true
                 )
+                routeIsBluetooth = selection.isBluetooth
 
                 model = localModel
                 recognizer = localRecognizer
@@ -166,13 +170,13 @@ class VoskWakeWordEngine(
      * Reinicia únicamente AudioRecord cuando Android informa una entrada añadida o retirada.
      * El reconocedor Vosk y el modelo se conservan, evitando descargar/recrear el modelo en cada cambio.
      */
-    private fun scheduleInputRouteRefresh() {
+    private fun scheduleInputRouteRefresh(force: Boolean = false) {
         scope.launch {
             kotlinx.coroutines.delay(INPUT_CHANGE_DEBOUNCE_MS)
             mutex.withLock {
                 if (_state.value != WakeWordState.LISTENING) return@withLock
                 val newSignature = audioRouter.currentInputSignature()
-                if (newSignature == lastInputSignature) return@withLock
+                if (!force && newSignature == lastInputSignature) return@withLock
 
                 val activeRecognizer = recognizer ?: return@withLock
                 _state.value = WakeWordState.INITIALIZING
@@ -201,11 +205,12 @@ class VoskWakeWordEngine(
                     check(replacement.state == AudioRecord.STATE_INITIALIZED) {
                         "No se pudo reinicializar el micrófono tras cambiar el dispositivo."
                     }
-                    audioRouter.configureInput(
+                    val replacementSelection = audioRouter.configureInput(
                         recorder = replacement,
                         preferredInputId = prefs?.preferredAudioInputId,
                         preferBluetooth = prefs?.preferBluetoothAudio ?: true
                     )
+                    routeIsBluetooth = replacementSelection.isBluetooth
                     replacement.startRecording()
                     check(replacement.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                         "Android no reanudó la captura tras cambiar el dispositivo de audio."
@@ -228,12 +233,26 @@ class VoskWakeWordEngine(
     private fun listenLoop(recorder: AudioRecord, activeRecognizer: Recognizer) {
         val buffer = ShortArray(CHUNK_SAMPLES)
         var lastDetectionAt = 0L
+        // Comprobación de salud del micrófono Bluetooth: si en ~2 s todo es silencio digital, no llega audio.
+        var checkedChunks = 0
+        var peak = 0
+        val verifyBluetooth = routeIsBluetooth
         try {
             while (_state.value == WakeWordState.LISTENING) {
                 val count = recorder.read(buffer, 0, buffer.size)
                 if (count <= 0) {
                     if (_state.value != WakeWordState.LISTENING) break
                     throw IOException("La captura de audio se interrumpió (código $count).")
+                }
+                if (verifyBluetooth && checkedChunks < BLUETOOTH_VERIFY_CHUNKS) {
+                    for (i in 0 until count) peak = maxOf(peak, kotlin.math.abs(buffer[i].toInt()))
+                    checkedChunks++
+                    if (checkedChunks == BLUETOOTH_VERIFY_CHUNKS && peak < BLUETOOTH_SILENCE_PEAK) {
+                        BluetoothMicHealth.markFailed()
+                        AudioRouteNotice.set("🎙️ El micrófono Bluetooth no envía audio; escucho con el micrófono del teléfono.")
+                        scheduleInputRouteRefresh(force = true)
+                        return
+                    }
                 }
                 // Solo se miran resultados FINALES (tras una pausa): los parciales de Vosk con gramática reducida
                 // "alucinan" la palabra clave con casi cualquier sonido.
@@ -272,6 +291,8 @@ class VoskWakeWordEngine(
         private const val SAMPLE_RATE = 16_000
         private const val CHUNK_SAMPLES = 1_600
         private const val DETECTION_COOLDOWN_MS = 3_000L
+        private const val BLUETOOTH_VERIFY_CHUNKS = 20 // 20 × 100 ms
+        private const val BLUETOOTH_SILENCE_PEAK = 4
         private const val INPUT_CHANGE_DEBOUNCE_MS = 300L
     }
 }

@@ -46,7 +46,8 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 ?: AudioInputRouteSelection("Micrófono predeterminado", false)
         }
 
-        val shouldTryBluetooth = explicit?.let(::isBluetoothInput) ?: preferBluetooth
+        val shouldTryBluetooth = explicit?.let(::isBluetoothInput)
+            ?: (preferBluetooth && !BluetoothMicHealth.isBlocked())
         if (shouldTryBluetooth) {
             val bluetoothInput = connectBluetoothInput(manager, explicit?.type)
             if (bluetoothInput != null) {
@@ -164,10 +165,16 @@ class AndroidBluetoothAudioRouter(context: Context) {
         val shouldTryBluetooth = when {
             preferredInput != null -> isBluetoothInput(preferredInput)
             preferredInputId != null -> false
-            else -> preferBluetooth
+            else -> preferBluetooth && !BluetoothMicHealth.isBlocked()
         }
         if (!shouldTryBluetooth) {
-            return phoneFallback("Bluetooth no está priorizado en Ajustes o elegiste otro micrófono")
+            return phoneFallback(
+                if (preferBluetooth && preferredInputId == null && BluetoothMicHealth.isBlocked()) {
+                    "el micrófono Bluetooth no envió audio hace poco; se volverá a probar en unos minutos"
+                } else {
+                    "Bluetooth no está priorizado en Ajustes o elegiste otro micrófono"
+                }
+            )
         }
 
         val communicationOutput = findBluetoothCommunicationOutput(

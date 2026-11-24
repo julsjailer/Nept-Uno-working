@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -45,6 +47,17 @@ class AndroidSpeechToTextEngine(
 
     private var speechRecognizer: SpeechRecognizer? = null
     private var activeSession = false
+
+    // Reintento automático con el micrófono del teléfono si el Bluetooth no capta nada (modo híbrido).
+    private val retryScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + Dispatchers.Main
+    )
+    private var lastLanguageCode = "es"
+    private var lastPreferOffline = false
+    private var internalRetry = false
+    private var retriedOnPhone = false
+    private var sawSpeech = false
+    private var maxRmsDb = Float.NEGATIVE_INFINITY
 
     override fun checkAvailability(): SttAvailability {
         val standardAvailable = SpeechRecognizer.isRecognitionAvailable(appContext)
@@ -98,6 +111,14 @@ class AndroidSpeechToTextEngine(
             if (activeSession || _isListening.value) {
                 return@withContext Result.success(Unit)
             }
+
+            val isRetry = internalRetry
+            internalRetry = false
+            if (!isRetry) retriedOnPhone = false
+            lastLanguageCode = languageCode
+            lastPreferOffline = preferOffline
+            sawSpeech = false
+            maxRmsDb = Float.NEGATIVE_INFINITY
 
             runCatching {
                 activeInputRoute = bluetoothAudioRouter.configureCommunicationInput(
@@ -209,10 +230,13 @@ class AndroidSpeechToTextEngine(
             }
 
             override fun onBeginningOfSpeech() {
+                sawSpeech = true
                 _isListening.value = true
             }
 
-            override fun onRmsChanged(rmsdB: Float) = Unit
+            override fun onRmsChanged(rmsdB: Float) {
+                if (rmsdB > maxRmsDb) maxRmsDb = rmsdB
+            }
 
             override fun onBufferReceived(buffer: ByteArray?) = Unit
 
@@ -224,8 +248,25 @@ class AndroidSpeechToTextEngine(
             override fun onError(error: Int) {
                 activeSession = false
                 _isListening.value = false
+                val bluetoothWasActive = activeInputRoute?.isBluetooth == true
                 bluetoothAudioRouter.release()
                 activeInputRoute = null
+
+                val silentError = error == SpeechRecognizer.ERROR_AUDIO ||
+                    error == SpeechRecognizer.ERROR_NO_MATCH ||
+                    error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                if (bluetoothWasActive && silentError && !sawSpeech && maxRmsDb <= 0.5f && !retriedOnPhone) {
+                    // Los auriculares están conectados pero no llega audio: se marca y se reintenta con el teléfono.
+                    retriedOnPhone = true
+                    BluetoothMicHealth.markFailed()
+                    AudioRouteNotice.set("🎙️ El micrófono Bluetooth no captó audio; cambié al micrófono del teléfono.")
+                    retryScope.launch {
+                        delay(400)
+                        internalRetry = true
+                        startListening(lastLanguageCode, lastPreferOffline)
+                    }
+                    return
+                }
                 val mapped = mapRecognitionError(error)
                 _events.tryEmit(mapped)
             }
