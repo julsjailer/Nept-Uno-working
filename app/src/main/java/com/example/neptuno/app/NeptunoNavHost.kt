@@ -143,6 +143,19 @@ fun NeptunoAppShell(
         )
     )
 
+    // Bluetooth autónomo: en Android 12+ sin este permiso Android no deja ver los auriculares; se pide una vez al abrir.
+    val bluetoothContext = androidx.compose.ui.platform.LocalContext.current
+    val bluetoothPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { }
+    LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
+            !com.example.neptuno.core.PermissionHelper.hasBluetoothConnectPermission(bluetoothContext)
+        ) {
+            bluetoothPermissionLauncher.launch(android.Manifest.permission.BLUETOOTH_CONNECT)
+        }
+    }
+
     // "Hey Neptuno": el servicio de fondo pide escuchar; el chat dicta y envía solo, y avisa al terminar.
     LaunchedEffect(chatViewModel, container) {
         val bus = container.wakeActivationBus

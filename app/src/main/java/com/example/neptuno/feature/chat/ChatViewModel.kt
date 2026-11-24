@@ -57,6 +57,7 @@ data class ChatUiState(
     val autoSpeakResponses: Boolean = true,
     val persistHistoryEnabled: Boolean = true,
     val microphoneStatusBanner: String? = null,
+    val audioRouteNotice: String? = null,
     val sttAvailability: SttAvailability = SttAvailability(
         isServiceAvailable = true,
         isOnDeviceSupported = false,
@@ -152,8 +153,9 @@ class ChatViewModel(
 
     val uiState: StateFlow<ChatUiState> = combine(
         dataSnapshotFlow,
-        voiceSnapshotFlow
-    ) { data, voice ->
+        voiceSnapshotFlow,
+        com.example.neptuno.audio.engine.AudioRouteNotice.state
+    ) { data, voice, routeNotice ->
         val prefs = data.preferences
         val provider = aiProviderRegistry.getActiveProvider(prefs.preferredAiProviderId)
         val offline = prefs.offlineMode || !data.networkStatus.isConnected
@@ -189,6 +191,7 @@ class ChatViewModel(
             autoSpeakResponses = prefs.autoSpeakResponses,
             persistHistoryEnabled = prefs.persistConversationHistory,
             microphoneStatusBanner = voice.micBanner,
+            audioRouteNotice = routeNotice,
             sttAvailability = voice.sttAvailability
         )
     }.stateIn(

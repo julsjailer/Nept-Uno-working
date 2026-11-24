@@ -221,6 +221,18 @@ fun ChatScreen(
                     }
                 }
 
+                // Aviso de qué micrófono se usa (Bluetooth o teléfono) y por qué.
+                state.audioRouteNotice?.let { routeText ->
+                    Text(
+                        text = routeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 2.dp)
+                    )
+                }
+
                 // Banner de estado del micrófono / STT / TTS
                 AnimatedVisibility(visible = state.microphoneStatusBanner != null) {
                     state.microphoneStatusBanner?.let { bannerText ->

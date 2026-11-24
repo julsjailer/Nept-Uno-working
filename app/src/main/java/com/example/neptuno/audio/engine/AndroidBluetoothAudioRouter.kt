@@ -8,6 +8,7 @@ import android.media.AudioRecord
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import com.example.neptuno.core.PermissionHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -19,6 +20,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Si no hay una ruta Bluetooth compatible, AudioRecord conserva la entrada predeterminada del teléfono.
  */
 class AndroidBluetoothAudioRouter(context: Context) {
+
+    private val appContext = context.applicationContext
 
     private val audioManager =
         context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -154,7 +157,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
     ): AudioInputRouteSelection {
         release()
         val manager = audioManager
-            ?: return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+            ?: return phoneFallback("no se pudo acceder al audio del sistema")
 
         val inputs = manager.getDevices(AudioManager.GET_DEVICES_INPUTS)
         val preferredInput = preferredInputId?.let { id -> inputs.firstOrNull { it.id == id } }
@@ -164,13 +167,13 @@ class AndroidBluetoothAudioRouter(context: Context) {
             else -> preferBluetooth
         }
         if (!shouldTryBluetooth) {
-            return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+            return phoneFallback("Bluetooth no está priorizado en Ajustes o elegiste otro micrófono")
         }
 
         val communicationOutput = findBluetoothCommunicationOutput(
             manager,
             preferredInput?.type
-        ) ?: return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+        ) ?: return phoneFallback(noBluetoothMicReason())
 
         originalAudioMode = manager.mode
         val modeAccepted = runCatching {
@@ -179,7 +182,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
         }.getOrDefault(false)
         if (!modeAccepted) {
             releaseBluetoothRoute(manager)
-            return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+            return phoneFallback("Android no permitió el modo de comunicación")
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -188,7 +191,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
             }.getOrDefault(false)
             if (!accepted) {
                 releaseBluetoothRoute(manager)
-                return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+                return phoneFallback("Android rechazó los auriculares como micrófono")
             }
             communicationDeviceSelected = true
             delay(BLUETOOTH_ROUTE_SETTLE_MS)
@@ -199,7 +202,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 legacyScoRequested = true
             }.onFailure {
                 releaseBluetoothRoute(manager)
-                return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+                return phoneFallback("no se pudo iniciar la conexión del micrófono Bluetooth (SCO)")
             }
             val connected = withTimeoutOrNull(LEGACY_SCO_TIMEOUT_MS) {
                 while (!runCatching {
@@ -212,11 +215,11 @@ class AndroidBluetoothAudioRouter(context: Context) {
             } ?: false
             if (!connected) {
                 releaseBluetoothRoute(manager)
-                return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+                return phoneFallback("los auriculares no activaron su canal de micrófono (SCO)")
             }
         } else {
             releaseBluetoothRoute(manager)
-            return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+            return phoneFallback("esta versión de Android no permite usar el micrófono Bluetooth")
         }
 
         val inputName = manager.getDevices(AudioManager.GET_DEVICES_INPUTS)
@@ -226,8 +229,21 @@ class AndroidBluetoothAudioRouter(context: Context) {
             ?.takeIf { it.isNotBlank() }
             ?: communicationOutput.productName.toString().takeIf { it.isNotBlank() }
             ?: "Bluetooth"
+        AudioRouteNotice.set("🎧 Usando el micrófono Bluetooth: $inputName")
         return AudioInputRouteSelection("Micrófono Bluetooth · $inputName", true)
     }
+
+    private fun phoneFallback(reason: String): AudioInputRouteSelection {
+        AudioRouteNotice.set("🎙️ Usando el micrófono del teléfono: $reason.")
+        return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+    }
+
+    private fun noBluetoothMicReason(): String =
+        if (!PermissionHelper.hasBluetoothConnectPermission(appContext)) {
+            "falta el permiso de Bluetooth (concédelo en Ajustes del teléfono > Apps > NEPTUNO > Permisos)"
+        } else {
+            "no hay unos auriculares Bluetooth con micrófono conectados, o solo están conectados para música"
+        }
 
     /** Firma de las entradas visibles para detectar conexiones/desconexiones reales. */
     fun currentInputSignature(): String =
