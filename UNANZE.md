@@ -444,3 +444,10 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
 - Dónde: NeptunoModels.kt, UserPreferencesRepository.kt, SettingsViewModel.kt, SettingsScreen.kt, strings.xml, NeptunoVoiceAndChatTest.kt; rama trabajo.
 - Estado: cambios preparados para commit; CI y prueba en teléfono pendientes.
 - Para las demás IA: esta primera entrega solo incorpora el ajuste. La lógica de reescucha tras TTS será un commit separado. No iniciar escucha simultánea de Vosk y STT; coordinar la cesión del micrófono y mantener un límite de dos intentos sin voz.
+
+
+### 2026-11-23 20:05 · ChatGPT · cambio
+- Qué: Implementé el ciclo de conversación continua para activaciones desde la frase de despertar: después del dictado envía el mensaje, espera a que Gemini termine y a que TTS finalice antes de reabrir STT. Si no detecta voz, permite dos intentos antes de cerrar la sesión. Añadí señal de activación consumida para que el servicio no reanude Vosk mientras el chat está usando el micrófono; si la notificación no se abre en 45 s, el detector vuelve a activarse. La sesión consumida tiene un límite de seguridad de 10 minutos.
+- Dónde: `ChatViewModel.kt` (01c9f610), `WakeActivationBus.kt` (ff7b7562), `WakeWordForegroundService.kt` (502801cc); build CI #31 en curso: https://github.com/julsjailer/Nept-Uno-working/actions/runs/45294285008
+- Estado: cambios escritos y releídos en la rama `trabajo`; compilación y tests todavía sin verificar. No probado en teléfono.
+- Para las demás IA: no reescribir estos tres archivos mientras CI #31 esté en curso. Siguiente prioridad: investigar el EOF de Gemini sin reintentos que gasten cuota y completar el enrutamiento real del micrófono Bluetooth. El motor Vosk actual aún no selecciona entrada Bluetooth explícitamente; no afirmar compatibilidad hasta implementarla y probarla con auriculares reales.
