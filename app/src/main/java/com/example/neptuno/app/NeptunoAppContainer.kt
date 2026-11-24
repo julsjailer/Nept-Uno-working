@@ -111,7 +111,7 @@ class NeptunoAppContainer(context: Context) {
 
     val wakeWordEngine: WakeWordEngine by lazy {
         // Motor Vosk (local, español). Sin probar en teléfono todavía (ver UNANZE.md).
-        VoskWakeWordEngine(appContext)
+        VoskWakeWordEngine(appContext, preferencesRepository)
     }
 
     val wakeActivationBus: WakeActivationBus by lazy { WakeActivationBus() }
