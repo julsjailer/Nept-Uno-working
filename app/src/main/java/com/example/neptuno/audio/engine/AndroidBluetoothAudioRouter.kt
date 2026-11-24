@@ -142,6 +142,93 @@ class AndroidBluetoothAudioRouter(context: Context) {
         return AudioInputRouteSelection(name, bluetooth)
     }
 
+    /**
+     * Prepara la ruta de comunicación Bluetooth para SpeechRecognizer.
+     * SpeechRecognizer no expone AudioRecord.setPreferredDevice; Android enruta la entrada
+     * asociada al dispositivo de comunicación seleccionado. Si no existe micrófono BT,
+     * deja la ruta del teléfono intacta y permite continuar con el reconocedor del sistema.
+     */
+    suspend fun configureCommunicationInput(
+        preferredInputId: Int?,
+        preferBluetooth: Boolean
+    ): AudioInputRouteSelection {
+        release()
+        val manager = audioManager
+            ?: return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+
+        val inputs = manager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+        val preferredInput = preferredInputId?.let { id -> inputs.firstOrNull { it.id == id } }
+        val shouldTryBluetooth = when {
+            preferredInput != null -> isBluetoothInput(preferredInput)
+            preferredInputId != null -> false
+            else -> preferBluetooth
+        }
+        if (!shouldTryBluetooth) {
+            return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+        }
+
+        val communicationOutput = findBluetoothCommunicationOutput(
+            manager,
+            preferredInput?.type
+        ) ?: return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+
+        originalAudioMode = manager.mode
+        val modeAccepted = runCatching {
+            manager.mode = AudioManager.MODE_IN_COMMUNICATION
+            true
+        }.getOrDefault(false)
+        if (!modeAccepted) {
+            releaseBluetoothRoute(manager)
+            return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val accepted = runCatching {
+                manager.setCommunicationDevice(communicationOutput)
+            }.getOrDefault(false)
+            if (!accepted) {
+                releaseBluetoothRoute(manager)
+                return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+            }
+            communicationDeviceSelected = true
+            delay(BLUETOOTH_ROUTE_SETTLE_MS)
+        } else if (communicationOutput.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+            runCatching {
+                @Suppress("DEPRECATION")
+                manager.startBluetoothSco()
+                legacyScoRequested = true
+            }.onFailure {
+                releaseBluetoothRoute(manager)
+                return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+            }
+            val connected = withTimeoutOrNull(LEGACY_SCO_TIMEOUT_MS) {
+                while (!runCatching {
+                    @Suppress("DEPRECATION")
+                    manager.isBluetoothScoOn
+                }.getOrDefault(false)) {
+                    delay(SCO_POLL_INTERVAL_MS)
+                }
+                true
+            } ?: false
+            if (!connected) {
+                releaseBluetoothRoute(manager)
+                return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+            }
+        } else {
+            releaseBluetoothRoute(manager)
+            return AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+        }
+
+        val inputName = manager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .firstOrNull(::isBluetoothInput)
+            ?.productName
+            ?.toString()
+            ?.takeIf { it.isNotBlank() }
+            ?: communicationOutput.productName.toString().takeIf { it.isNotBlank() }
+            ?: "Bluetooth"
+        return AudioInputRouteSelection("Micrófono Bluetooth · $inputName", true)
+    }
+
     /** Firma de las entradas visibles para detectar conexiones/desconexiones reales. */
     fun currentInputSignature(): String =
         audioManager?.getDevices(AudioManager.GET_DEVICES_INPUTS)

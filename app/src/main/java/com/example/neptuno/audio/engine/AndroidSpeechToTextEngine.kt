@@ -8,6 +8,8 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import com.example.neptuno.core.PermissionHelper
+import com.example.neptuno.data.local.UserPreferencesRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,10 +27,13 @@ import kotlinx.coroutines.withContext
  * evita sesiones simultáneas y mapea errores reales del servicio de reconocimiento.
  */
 class AndroidSpeechToTextEngine(
-    context: Context
+    context: Context,
+    private val preferencesRepository: UserPreferencesRepository
 ) : SpeechToTextEngine {
 
     private val appContext = context.applicationContext
+    private val bluetoothAudioRouter = AndroidBluetoothAudioRouter(appContext)
+    private var activeInputRoute: AudioInputRouteSelection? = null
 
     override val isIntegrationReady: Boolean
         get() = checkAvailability().isServiceAvailable
@@ -87,12 +92,19 @@ class AndroidSpeechToTextEngine(
             return Result.failure(IllegalStateException(errorMsg))
         }
 
+        val audioPreferences = preferencesRepository.userPreferences.first()
+
         return withContext(Dispatchers.Main.immediate) {
             if (activeSession || _isListening.value) {
                 return@withContext Result.success(Unit)
             }
 
             runCatching {
+                activeInputRoute = bluetoothAudioRouter.configureCommunicationInput(
+                    preferredInputId = audioPreferences.preferredAudioInputId,
+                    preferBluetooth = audioPreferences.preferBluetoothAudio
+                )
+
                 val useOnDeviceOnly = preferOffline &&
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                     availability.isOnDeviceSupported
@@ -123,6 +135,8 @@ class AndroidSpeechToTextEngine(
                 activeSession = false
                 _isListening.value = false
                 val msg = throwable.localizedMessage ?: "No se pudo iniciar el reconocimiento de voz."
+                bluetoothAudioRouter.release()
+                activeInputRoute = null
                 _events.tryEmit(SttEvent.Error(msg, isServiceUnavailable = true))
             }
         }
@@ -135,6 +149,8 @@ class AndroidSpeechToTextEngine(
             }
             activeSession = false
             _isListening.value = false
+            bluetoothAudioRouter.release()
+            activeInputRoute = null
             _events.tryEmit(SttEvent.Stopped)
         }
     }
@@ -144,6 +160,8 @@ class AndroidSpeechToTextEngine(
         _isListening.value = false
         val cancelAction = {
             runCatching { speechRecognizer?.cancel() }
+            bluetoothAudioRouter.release()
+            activeInputRoute = null
             _events.tryEmit(SttEvent.Stopped)
             Unit
         }
@@ -163,6 +181,8 @@ class AndroidSpeechToTextEngine(
                 speechRecognizer?.destroy()
             }
             speechRecognizer = null
+            bluetoothAudioRouter.release()
+            activeInputRoute = null
         }
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
             destroyAction()
@@ -204,6 +224,8 @@ class AndroidSpeechToTextEngine(
             override fun onError(error: Int) {
                 activeSession = false
                 _isListening.value = false
+                bluetoothAudioRouter.release()
+                activeInputRoute = null
                 val mapped = mapRecognitionError(error)
                 _events.tryEmit(mapped)
             }
@@ -211,6 +233,8 @@ class AndroidSpeechToTextEngine(
             override fun onResults(results: Bundle?) {
                 activeSession = false
                 _isListening.value = false
+                bluetoothAudioRouter.release()
+                activeInputRoute = null
                 val text = results
                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
