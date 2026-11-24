@@ -383,6 +383,7 @@ class ChatViewModel(
                                         providerId = provider.id
                                     )
                                 )
+                                scheduleContinuousListening()
                             }
 
                             is AiResponseEvent.TextDelta -> {
@@ -542,7 +543,11 @@ class ChatViewModel(
 
     /** Inicia el siguiente turno solo después de terminar TTS; nunca comparte el micrófono con Vosk. */
     private fun scheduleContinuousListening() {
-        if (!wakeInitiated || !continuousWakeSession) return
+        if (!wakeInitiated) return
+        if (!continuousWakeSession) {
+            finishWakeTurn()
+            return
+        }
         viewModelScope.launch {
             kotlinx.coroutines.delay(450)
             if (!wakeInitiated || !continuousWakeSession) return@launch
