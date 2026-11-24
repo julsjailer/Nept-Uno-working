@@ -39,6 +39,30 @@ enum class GeminiErrorCategory {
     UNKNOWN
 }
 
+/** Cuenta solicitudes exitosas por modelo y día (la cuota gratuita de Google se reinicia a medianoche, hora del Pacífico). */
+interface GeminiUsageStore {
+    fun recordSuccess(model: String)
+    fun usedToday(model: String): Int
+}
+
+class SharedPrefsGeminiUsageStore(context: android.content.Context) : GeminiUsageStore {
+    private val prefs = context.applicationContext.getSharedPreferences("gemini_usage", android.content.Context.MODE_PRIVATE)
+
+    private fun today(): String =
+        java.time.LocalDate.now(java.time.ZoneId.of("America/Los_Angeles")).toString()
+
+    @Synchronized
+    override fun recordSuccess(model: String) {
+        val day = today()
+        if (prefs.getString("day", null) != day) prefs.edit().clear().putString("day", day).apply()
+        prefs.edit().putInt("count_$model", prefs.getInt("count_$model", 0) + 1).apply()
+    }
+
+    @Synchronized
+    override fun usedToday(model: String): Int =
+        if (prefs.getString("day", null) == today()) prefs.getInt("count_$model", 0) else 0
+}
+
 data class ClassifiedGeminiError(
     val category: GeminiErrorCategory,
     val shortStatus: String,
@@ -76,7 +100,8 @@ private object FirebaseAiGeminiStreamClient : GeminiStreamClient {
 class GeminiFirebaseProvider(
     private val streamClient: GeminiStreamClient = FirebaseAiGeminiStreamClient,
     private val streamTimeoutMs: Long = STREAM_TIMEOUT_MS,
-    private val modelChain: List<String> = DEFAULT_MODEL_CHAIN
+    private val modelChain: List<String> = DEFAULT_MODEL_CHAIN,
+    private val usageStore: GeminiUsageStore? = null
 ) : AiProvider {
 
     override val id: String = "gemini_firebase"
@@ -84,7 +109,10 @@ class GeminiFirebaseProvider(
     private var lastSuccessfulModel: String? = null
 
     override val displayName: String
-        get() = lastSuccessfulModel?.let { "Gemini (Texto y Streaming) · $it" } ?: "Gemini (Texto y Streaming)"
+        get() = lastSuccessfulModel?.let { model ->
+            val usage = usageStore?.let { " · ${it.usedToday(model)}/$FREE_TIER_DAILY_LIMIT hoy" }.orEmpty()
+            "Gemini (Texto y Streaming) · $model$usage"
+        } ?: "Gemini (Texto y Streaming)"
     override val capabilities: AiProviderCapabilities = AiProviderCapabilities(
         supportsStreamingText = true,
         supportsBidirectionalAudio = false,
@@ -146,6 +174,7 @@ class GeminiFirebaseProvider(
                 } else {
                     currentStatus = AiProviderStatus.Ready
                     lastSuccessfulModel = modelName
+                    runCatching { usageStore?.recordSuccess(modelName) }
                     emit(AiResponseEvent.Completed)
                 }
                 break
@@ -238,11 +267,11 @@ class GeminiFirebaseProvider(
         val contents = mutableListOf<Content>()
         request.recentHistory
             .filter { it.sender == MessageSender.USER || it.sender == MessageSender.ASSISTANT }
-            .takeLast(12)
+            .takeLast(MAX_HISTORY_MESSAGES)
             .forEach { msg ->
                 val role = if (msg.sender == MessageSender.USER) "user" else "model"
                 if (msg.content.isNotBlank()) {
-                    contents += content(role) { text(msg.content) }
+                    contents += content(role) { text(msg.content.take(MAX_HISTORY_CHARS_PER_MESSAGE)) }
                 }
             }
 
@@ -257,6 +286,13 @@ class GeminiFirebaseProvider(
     }
 
     companion object {
+        /** Límite diario aproximado del plan gratuito por modelo (el usuario lo ve en Google AI Studio). */
+        const val FREE_TIER_DAILY_LIMIT = 20
+
+        // Menos historial = menos tokens por solicitud (la cuota gratuita también limita tokens por minuto).
+        private const val MAX_HISTORY_MESSAGES = 8
+        private const val MAX_HISTORY_CHARS_PER_MESSAGE = 1_500
+
         // "rate" suelto coincidía con "gene-rate" (p. ej. streamGenerateContent); exigir "rate limit"/"rate-limit"/"rate limited".
         private val RATE_LIMIT_REGEX = Regex("\\brate[\\s_-]?limit", RegexOption.IGNORE_CASE)
 

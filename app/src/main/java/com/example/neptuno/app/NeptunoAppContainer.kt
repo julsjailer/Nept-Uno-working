@@ -102,7 +102,7 @@ class NeptunoAppContainer(context: Context) {
     val aiProviderRegistry: AiProviderRegistry by lazy {
         AiProviderRegistry(
             providers = listOf(
-                GeminiFirebaseProvider(),
+                GeminiFirebaseProvider(usageStore = com.example.neptuno.ai.gemini.SharedPrefsGeminiUsageStore(appContext)),
                 GeminiPendingProvider(),
                 LocalEnginePendingProvider()
             )

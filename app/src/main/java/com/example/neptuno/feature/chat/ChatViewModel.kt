@@ -14,6 +14,7 @@ import com.example.neptuno.audio.engine.SttEvent
 import com.example.neptuno.audio.engine.TextToSpeechEngine
 import com.example.neptuno.core.NetworkMonitor
 import com.example.neptuno.core.NetworkStatus
+import com.example.neptuno.core.model.AppLanguage
 import com.example.neptuno.core.model.AiProviderStatus
 import com.example.neptuno.core.model.AssistantState
 import com.example.neptuno.core.model.AvatarStyle
@@ -306,6 +307,29 @@ class ChatViewModel(
                 }
 
                 val provider = aiProviderRegistry.getActiveProvider(prefs.preferredAiProviderId)
+
+                // Frases triviales (saludo, gracias, hora, fecha) se responden en el teléfono: 0 solicitudes a Gemini.
+                val quickReply = if (prefs.language == AppLanguage.SPANISH) LocalQuickReply.match(trimmed) else null
+                if (quickReply != null) {
+                    appendMessage(
+                        persist = prefs.persistConversationHistory,
+                        message = ChatMessage(
+                            conversationId = conversationId,
+                            sender = MessageSender.ASSISTANT,
+                            content = quickReply,
+                            providerId = "local_quick_reply"
+                        )
+                    )
+                    _turnState.update {
+                        it.copy(isGeneratingText = false, streamingResponseText = null, statusOverride = null)
+                    }
+                    if (prefs.autoSpeakResponses) {
+                        speakAssistantResponse(quickReply, prefs)
+                    } else {
+                        scheduleContinuousListening()
+                    }
+                    return@launch
+                }
 
                 if (effectiveOffline &&
                     !provider.capabilities.supportsOfflineExecution &&
