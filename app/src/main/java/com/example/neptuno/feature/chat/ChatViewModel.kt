@@ -330,6 +330,7 @@ class ChatViewModel(
                             statusOverride = AssistantState.OFFLINE to "Sin conexión"
                         )
                     }
+                    scheduleContinuousListening()
                     return@launch
                 }
 
@@ -420,6 +421,8 @@ class ChatViewModel(
 
                                 if (prefs.autoSpeakResponses && finalResponse.isNotEmpty()) {
                                     speakAssistantResponse(finalResponse, prefs)
+                                } else {
+                                    scheduleContinuousListening()
                                 }
                             }
 
@@ -441,6 +444,7 @@ class ChatViewModel(
                                     streamingResponseText = null,
                                     statusOverride = AssistantState.IDLE to "Interrumpido"
                                 )
+                                finishWakeTurn()
                             }
 
                             is AiResponseEvent.Failure -> {
@@ -460,6 +464,7 @@ class ChatViewModel(
                                         providerId = provider.id
                                     )
                                 )
+                                scheduleContinuousListening()
                             }
                         }
                     }
@@ -484,6 +489,7 @@ class ChatViewModel(
                             providerId = provider.id
                         )
                     )
+                    scheduleContinuousListening()
                 }
             }
         }
@@ -498,8 +504,11 @@ class ChatViewModel(
         }
     }
 
-    /** Marca la sesión de voz como iniciada por la frase "Hey Neptuno": el dictado se envía solo al terminar. */
+    /** Sesión iniciada por la frase de activación; mantiene Vosk pausado durante dictado, Gemini y TTS. */
     private var wakeInitiated = false
+    private var continuousWakeSession = false
+    private var noSpeechAttempts = 0
+    private var suppressNextStoppedEvent = false
     private val _voiceTurnEnded = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 4)
 
     /** Emite cuando termina un dictado iniciado por voz de activación (para reanudar la escucha de fondo). */
@@ -507,7 +516,10 @@ class ChatViewModel(
 
     fun startVoiceFromWake() {
         viewModelScope.launch {
+            val prefs = preferencesRepository.userPreferences.first()
             wakeInitiated = true
+            continuousWakeSession = prefs.continuousConversation
+            noSpeechAttempts = 0
             val alreadyListening = speechToTextEngine.isListening.value
             if (!alreadyListening) toggleListeningSession()
             if (!speechToTextEngine.isListening.value &&
@@ -522,7 +534,41 @@ class ChatViewModel(
     private fun finishWakeTurn() {
         if (wakeInitiated) {
             wakeInitiated = false
+            continuousWakeSession = false
+            noSpeechAttempts = 0
             _voiceTurnEnded.tryEmit(Unit)
+        }
+    }
+
+    /** Inicia el siguiente turno solo después de terminar TTS; nunca comparte el micrófono con Vosk. */
+    private fun scheduleContinuousListening() {
+        if (!wakeInitiated || !continuousWakeSession) return
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(450)
+            if (!wakeInitiated || !continuousWakeSession) return@launch
+            val prefs = preferencesRepository.userPreferences.first()
+            val availability = speechToTextEngine.checkAvailability()
+            _sttAvailability.value = availability
+            if (!availability.isServiceAvailable) {
+                _micStatusBanner.value = availability.note
+                finishWakeTurn()
+                return@launch
+            }
+            val network = networkMonitor.observeNetworkStatus().first()
+            val offlineActive = prefs.offlineMode || !network.isConnected
+            voiceBaseDraftPrefix = ""
+            val result = speechToTextEngine.startListening(
+                languageCode = prefs.language.code,
+                preferOffline = offlineActive
+            )
+            if (result.isSuccess) {
+                _micStatusBanner.value = null
+                _turnState.update { it.copy(statusOverride = AssistantState.LISTENING to "Escuchando") }
+            } else {
+                _micStatusBanner.value = result.exceptionOrNull()?.localizedMessage
+                    ?: "No se pudo reanudar la escucha."
+                finishWakeTurn()
+            }
         }
     }
 
@@ -656,9 +702,12 @@ class ChatViewModel(
                 viewModelScope.launch {
                     val autoSend = preferencesRepository.userPreferences.first().autoSendVoice || wakeInitiated
                     if (autoSend && _draftInput.value.isNotBlank()) {
+                        noSpeechAttempts = 0
+                        suppressNextStoppedEvent = true
                         sendMessage()
+                    } else {
+                        finishWakeTurn()
                     }
-                    finishWakeTurn()
                 }
                 _turnState.update { current ->
                     if (current.statusOverride?.first == AssistantState.LISTENING) {
@@ -671,7 +720,11 @@ class ChatViewModel(
 
             is SttEvent.Stopped -> {
                 voiceBaseDraftPrefix = ""
-                finishWakeTurn()
+                if (suppressNextStoppedEvent) {
+                    suppressNextStoppedEvent = false
+                } else {
+                    finishWakeTurn()
+                }
                 _turnState.update { current ->
                     if (current.statusOverride?.first == AssistantState.LISTENING) {
                         current.copy(statusOverride = null)
@@ -683,7 +736,19 @@ class ChatViewModel(
 
             is SttEvent.Error -> {
                 voiceBaseDraftPrefix = ""
-                finishWakeTurn()
+                val noSpeech = event.message.contains("no se entendió", ignoreCase = true) ||
+                    event.message.contains("tiempo de espera agotado", ignoreCase = true) ||
+                    event.message.contains("no se detectó texto", ignoreCase = true)
+                if (wakeInitiated && continuousWakeSession && noSpeech) {
+                    noSpeechAttempts += 1
+                    if (noSpeechAttempts < MAX_CONTINUOUS_NO_SPEECH_ATTEMPTS) {
+                        scheduleContinuousListening()
+                    } else {
+                        finishWakeTurn()
+                    }
+                } else {
+                    finishWakeTurn()
+                }
                 val detail = when {
                     event.isServiceUnavailable -> "Servicio de voz no disponible"
                     event.isNetworkError -> "Sin conexión"
@@ -726,6 +791,7 @@ class ChatViewModel(
                     current
                 }
             }
+            scheduleContinuousListening()
         }
     }
 
@@ -816,6 +882,8 @@ class ChatViewModel(
     }
 
     companion object {
+        private const val MAX_CONTINUOUS_NO_SPEECH_ATTEMPTS = 2
+
         fun factory(
             conversationRepository: ConversationRepository,
             memoryRepository: MemoryRepository,
