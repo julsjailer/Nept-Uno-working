@@ -147,18 +147,34 @@ jobs:
           name: Neptuno-debug-apk
           path: Neptuno-debug.apk
 
-      # Release fijo "apk-latest": su APK se descarga directo desde la pestaña Releases (cómodo en el móvil).
-      - name: Publicar en Releases (apk-latest)
+      # Dos releases: `apk-latest` (siempre el último, enlace fijo) y `v1.0.<n>` (uno por build, se conservan los 25
+      # últimos) para poder volver a una versión anterior si una falla.
+      - name: Publicar en Releases (apk-latest y versión)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete apk-latest --cleanup-tag --yes || true
+          VERSION="1.0.${GITHUB_RUN_NUMBER}"
+          SHA256=$(sha256sum Neptuno-debug.apk | cut -d' ' -f1)
+          MSG=$(git log -1 --format=%s)
+          NOTES="Versión ${VERSION} (versionCode ${GITHUB_RUN_NUMBER}) · rama ${GITHUB_REF_NAME} · commit ${GITHUB_SHA::7}
+          Cambio: ${MSG}
+          SHA-256 de Neptuno-debug.apk: ${SHA256}
+          Neptuno-debug.apk = completa. Neptuno-debug-arm.apk = ligera solo ARM (misma firma)."
+          cp Neptuno-debug.apk "Neptuno-v${VERSION}.apk"
           ASSETS="Neptuno-debug.apk"
           [ -f Neptuno-debug-arm.apk ] && ASSETS="$ASSETS Neptuno-debug-arm.apk"
-          gh release create apk-latest $ASSETS \
-            --target "$GITHUB_SHA" \
-            --title "APK debug (último build)" \
-            --notes "Build automático de la rama ${GITHUB_REF_NAME}, commit ${GITHUB_SHA::7}. Neptuno-debug.apk = completa (SHA-256 $(sha256sum Neptuno-debug.apk | cut -d' ' -f1)). Neptuno-debug-arm.apk = ligera solo ARM, misma firma."
+
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest $ASSETS --target "$GITHUB_SHA" \
+            --title "APK debug (último build) · v${VERSION}" --notes "$NOTES"
+
+          gh release create "v${VERSION}" "Neptuno-v${VERSION}.apk" --target "$GITHUB_SHA" \
+            --latest=false --prerelease --title "NEPTUNO v${VERSION}" --notes "$NOTES" || true
+
+          # Conserva solo las 25 versiones más recientes.
+          gh release list --limit 200 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("v1.0."))] | sort_by(.createdAt) | reverse | .[25:] | .[].tagName' \
+            | while read -r tag; do gh release delete "$tag" --cleanup-tag --yes || true; done
 
       # Instala la APK en un emulador Android 11 (como los Redmi con MIUI 12.5) y guarda el error EXACTO del instalador.
       - name: Habilitar KVM

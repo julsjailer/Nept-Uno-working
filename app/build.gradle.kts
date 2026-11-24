@@ -16,8 +16,12 @@ android {
     applicationId = "com.aistudio.neptuno.k7v9xm"
     minSdk = 29
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0.0"
+    // Versionado automático: en CI cada build recibe el número de ejecución de GitHub (siempre creciente) y el commit.
+    // Así cada APK es identificable (Ajustes > Información de la aplicación) y tiene su release `v1.0.<n>` en GitHub.
+    val buildNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+    val commitShort = System.getenv("GITHUB_SHA")?.take(7)
+    versionCode = buildNumber
+    versionName = "1.0.$buildNumber" + (commitShort?.let { " ($it)" } ?: "")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
