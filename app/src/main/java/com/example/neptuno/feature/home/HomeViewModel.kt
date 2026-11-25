@@ -63,6 +63,11 @@ class HomeViewModel(
             memoryCount = memories.size,
             conversationCount = conversations.size
         )
+    }.combine(com.example.neptuno.audio.engine.LiveAssistantState.state) { ui, live ->
+        // Si el asistente está haciendo algo (escuchar, pensar, hablar…), el avatar lo muestra; si no, conserva el estado base.
+        if (live != null && live != AssistantState.IDLE && ui.assistantState != AssistantState.OFFLINE) {
+            ui.copy(assistantState = live)
+        } else ui
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),

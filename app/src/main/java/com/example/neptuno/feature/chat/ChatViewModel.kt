@@ -205,6 +205,12 @@ class ChatViewModel(
     val draftInput: StateFlow<String> = _draftInput.asStateFlow()
 
     init {
+        // Publica el estado en vivo para que el avatar del inicio lo refleje aunque el chat no esté a la vista.
+        viewModelScope.launch {
+            uiState.collect {
+                com.example.neptuno.audio.engine.LiveAssistantState.set(it.assistantState)
+            }
+        }
         viewModelScope.launch {
             val id = conversationRepository.getOrCreateActiveConversation("Sesión principal")
             _activeConversationId.value = id

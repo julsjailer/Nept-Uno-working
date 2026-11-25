@@ -47,3 +47,13 @@ object BluetoothMicHealth {
     fun isBlocked(nowMillis: Long = System.currentTimeMillis()): Boolean =
         failedAtMillis != 0L && nowMillis - failedAtMillis < COOLDOWN_MS
 }
+
+/** Estado en vivo del asistente (escuchando, pensando, hablando…) compartido entre el chat y la pantalla de inicio. */
+object LiveAssistantState {
+    private val _state = MutableStateFlow<com.example.neptuno.core.model.AssistantState?>(null)
+    val state: StateFlow<com.example.neptuno.core.model.AssistantState?> = _state
+
+    fun set(value: com.example.neptuno.core.model.AssistantState?) {
+        _state.value = value
+    }
+}
