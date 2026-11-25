@@ -445,8 +445,9 @@ class AndroidBluetoothAudioRouter(context: Context) {
         }
         var scoConnected = false
         if (strategy == ScoStrategy.VOICE_RECOGNITION_PROFILE) {
-            scoConnected = awaitLegacySco(manager)
-            BluetoothDiagnosticLog.add("Ruta V: SCO conectado=$scoConnected")
+            // Confirmar audio del dispositivo HFP exacto, no solo el estado global SCO del teléfono.
+            scoConnected = awaitHeadsetAudioConnected()
+            BluetoothDiagnosticLog.add("Ruta V: audio HFP del auricular confirmado=$scoConnected")
         }
         if (useLegacySco) {
             @Suppress("DEPRECATION")
@@ -591,6 +592,18 @@ class AndroidBluetoothAudioRouter(context: Context) {
             ?: return false
         voiceRecognitionDevice = device
         return runCatching { proxy.startVoiceRecognition(device) }.getOrDefault(false)
+    }
+
+    @android.annotation.SuppressLint("MissingPermission")
+    private suspend fun awaitHeadsetAudioConnected(): Boolean {
+        val proxy = headsetProxy ?: return false
+        val device = voiceRecognitionDevice ?: return false
+        return withTimeoutOrNull(LEGACY_SCO_TIMEOUT_MS) {
+            while (!runCatching { proxy.isAudioConnected(device) }.getOrDefault(false)) {
+                delay(SCO_POLL_INTERVAL_MS)
+            }
+            true
+        } == true
     }
 
     @android.annotation.SuppressLint("MissingPermission")
