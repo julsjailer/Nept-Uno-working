@@ -27,6 +27,8 @@ class AndroidBluetoothAudioRouter(context: Context) {
         context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
     private var legacyScoRequested = false
+    private var headsetProxy: android.bluetooth.BluetoothHeadset? = null
+    private var voiceRecognitionDevice: android.bluetooth.BluetoothDevice? = null
     private var communicationDeviceSelected = false
     private var boundBluetoothInput: AudioDeviceInfo? = null
 
@@ -378,6 +380,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
 
     /** Formas de abrir el micrófono Bluetooth, de la más estándar a la más permisiva. */
     enum class ScoStrategy(val label: String) {
+        VOICE_RECOGNITION_PROFILE("V"),
         COMMUNICATION_DEVICE_AND_SCO("A"),
         COMMUNICATION_DEVICE_ONLY("B"),
         LEGACY_SCO_ONLY("C"),
@@ -388,7 +391,11 @@ class AndroidBluetoothAudioRouter(context: Context) {
         val all = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ScoStrategy.values().toList()
         } else {
-            listOf(ScoStrategy.LEGACY_SCO_ONLY, ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE)
+            listOf(
+                ScoStrategy.VOICE_RECOGNITION_PROFILE,
+                ScoStrategy.LEGACY_SCO_ONLY,
+                ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE
+            )
         }
         val remembered = appContext.getSharedPreferences("bt_route", Context.MODE_PRIVATE)
             .getString("strategy2_$deviceName", null)
@@ -424,6 +431,12 @@ class AndroidBluetoothAudioRouter(context: Context) {
         }
         val useCommunicationDevice = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             (strategy == ScoStrategy.COMMUNICATION_DEVICE_AND_SCO || strategy == ScoStrategy.COMMUNICATION_DEVICE_ONLY)
+        if (strategy == ScoStrategy.VOICE_RECOGNITION_PROFILE) {
+            // Reconocimiento de voz del perfil de manos libres (AT+BVRA): muchos auriculares solo activan su micrófono así.
+            val started = startHeadsetVoiceRecognition(communicationOutput)
+            BluetoothDiagnosticLog.add("Ruta V: startVoiceRecognition=$started")
+            if (!started) return null
+        }
         val useLegacySco = strategy == ScoStrategy.COMMUNICATION_DEVICE_AND_SCO ||
             strategy == ScoStrategy.LEGACY_SCO_ONLY
         if (useCommunicationDevice && manager.setCommunicationDevice(communicationOutput)) {
@@ -431,6 +444,10 @@ class AndroidBluetoothAudioRouter(context: Context) {
             awaitCommunicationDevice(manager, communicationOutput)
         }
         var scoConnected = false
+        if (strategy == ScoStrategy.VOICE_RECOGNITION_PROFILE) {
+            scoConnected = awaitLegacySco(manager)
+            BluetoothDiagnosticLog.add("Ruta V: SCO conectado=$scoConnected")
+        }
         if (useLegacySco) {
             @Suppress("DEPRECATION")
             manager.startBluetoothSco()
@@ -453,7 +470,8 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
             )
         }
-        val bindDevice = strategy != ScoStrategy.COMMUNICATION_DEVICE_ONLY && strategy != ScoStrategy.LEGACY_SCO_ONLY
+        val bindDevice = strategy != ScoStrategy.COMMUNICATION_DEVICE_ONLY && strategy != ScoStrategy.LEGACY_SCO_ONLY &&
+            strategy != ScoStrategy.VOICE_RECOGNITION_PROFILE
         var silentButValid: Int? = null
         for (source in sources) {
             val recorder = create(source)
@@ -481,7 +499,10 @@ class AndroidBluetoothAudioRouter(context: Context) {
             )
             recorder.stop()
             recorder.release()
-            if (peak >= AUDIO_PRESENT_PEAK) {
+            if (peak >= AUDIO_PRESENT_PEAK && !routedBluetooth) {
+                BluetoothDiagnosticLog.add("Ruta ${strategy.label}: el audio viene del micrófono del teléfono, no del auricular; descartado")
+            }
+            if (peak >= AUDIO_PRESENT_PEAK && routedBluetooth) {
                 boundBluetoothInput = if (bindDevice) bluetoothInput else null
                 return create(source).also { r ->
                     if (bindDevice && bluetoothInput != null) runCatching { r.setPreferredDevice(bluetoothInput) }
@@ -546,6 +567,40 @@ class AndroidBluetoothAudioRouter(context: Context) {
      * Cierra la ruta Bluetooth SOLO si ningún otro componente la sigue usando. Antes, al terminar el dictado (STT) se
      * apagaba el SCO que "Hey Neptuno" (Vosk) seguía usando y su micrófono quedaba mudo sin avisar.
      */
+    @android.annotation.SuppressLint("MissingPermission")
+    private suspend fun startHeadsetVoiceRecognition(target: AudioDeviceInfo): Boolean {
+        val adapter = (appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter
+            ?: return false
+        if (headsetProxy == null) {
+            headsetProxy = withTimeoutOrNull(3_000) {
+                kotlinx.coroutines.suspendCancellableCoroutine<android.bluetooth.BluetoothHeadset?> { cont ->
+                    val ok = adapter.getProfileProxy(appContext, object : android.bluetooth.BluetoothProfile.ServiceListener {
+                        override fun onServiceConnected(profile: Int, proxy: android.bluetooth.BluetoothProfile?) {
+                            if (cont.isActive) cont.resumeWith(Result.success(proxy as? android.bluetooth.BluetoothHeadset))
+                        }
+                        override fun onServiceDisconnected(profile: Int) {}
+                    }, android.bluetooth.BluetoothProfile.HEADSET)
+                    if (!ok && cont.isActive) cont.resumeWith(Result.success(null))
+                }
+            }
+        }
+        val proxy = headsetProxy ?: return false
+        val devices = runCatching { proxy.connectedDevices }.getOrDefault(emptyList())
+        val name = target.productName?.toString()
+        val device = devices.firstOrNull { runCatching { it.name }.getOrNull() == name } ?: devices.firstOrNull()
+            ?: return false
+        voiceRecognitionDevice = device
+        return runCatching { proxy.startVoiceRecognition(device) }.getOrDefault(false)
+    }
+
+    @android.annotation.SuppressLint("MissingPermission")
+    private fun stopHeadsetVoiceRecognition() {
+        val proxy = headsetProxy
+        val device = voiceRecognitionDevice
+        if (proxy != null && device != null) runCatching { proxy.stopVoiceRecognition(device) }
+        voiceRecognitionDevice = null
+    }
+
     private fun releaseBluetoothRoute(manager: AudioManager) {
         val othersStillUse = synchronized(SharedRoute) {
             SharedRoute.owners.remove(this)
@@ -567,6 +622,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
             }
             legacyScoRequested = false
         }
+        stopHeadsetVoiceRecognition()
         synchronized(SharedRoute) {
             SharedRoute.originalMode?.let { previousMode ->
                 runCatching { manager.mode = previousMode }
