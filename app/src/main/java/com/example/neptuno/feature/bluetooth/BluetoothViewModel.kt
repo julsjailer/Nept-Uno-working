@@ -171,6 +171,9 @@ class BluetoothViewModel(
             }
             recorder.stop()
             val percent = peak * 100 / 32_767
+            com.example.neptuno.audio.engine.BluetoothDiagnosticLog.add(
+                "Prueba de 3 s: pico=$peak ($percent %) con ${selection.displayName}"
+            )
             return when {
                 peak >= 600 -> "✅ Se te oye bien con: ${selection.displayName} (nivel $percent %)."
                 peak >= 4 && selection.isBluetooth ->

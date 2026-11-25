@@ -443,48 +443,60 @@ class AndroidBluetoothAudioRouter(context: Context) {
         delay(BLUETOOTH_ROUTE_SETTLE_MS)
 
         val bluetoothInput = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).firstOrNull(::isBluetoothInput)
-        val source = if (strategy == ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE) {
-            android.media.MediaRecorder.AudioSource.MIC
+        val sources = if (strategy == ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE) {
+            listOf(android.media.MediaRecorder.AudioSource.MIC)
         } else {
-            android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
+            // Cada ROM/auricular entrega audio por una fuente distinta: se prueban hasta encontrar la que suena.
+            listOf(
+                android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                android.media.MediaRecorder.AudioSource.MIC,
+                android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
+            )
         }
-        val recorder = create(source)
         val bindDevice = strategy != ScoStrategy.COMMUNICATION_DEVICE_ONLY && strategy != ScoStrategy.LEGACY_SCO_ONLY
-        if (bindDevice && bluetoothInput != null) runCatching { recorder.setPreferredDevice(bluetoothInput) }
-        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+        var silentButValid: Int? = null
+        for (source in sources) {
+            val recorder = create(source)
+            if (bindDevice && bluetoothInput != null) runCatching { recorder.setPreferredDevice(bluetoothInput) }
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                BluetoothDiagnosticLog.add("Ruta ${strategy.label} fuente $source: no inicializa")
+                recorder.release()
+                continue
+            }
+            recorder.startRecording()
+            val probe = ShortArray(1_600)
+            var peak = 0
+            val end = System.currentTimeMillis() + (if (sources.size > 1) 800 else 1_000)
+            while (System.currentTimeMillis() < end) {
+                val n = recorder.read(probe, 0, probe.size)
+                if (n <= 0) break
+                for (i in 0 until n) peak = maxOf(peak, kotlin.math.abs(probe[i].toInt()))
+            }
+            val routed = runCatching { recorder.routedDevice }.getOrNull()
+            val routedBluetooth = routed != null && (routed.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                routed.type == 26 || routed.type == 23)
+            BluetoothDiagnosticLog.add(
+                "Ruta ${strategy.label} fuente $source: pico=$peak, dispositivo real=${routed?.productName}/tipo ${routed?.type}, " +
+                    "SCO=${manager.isBluetoothScoOn}, modo=${manager.mode}"
+            )
+            recorder.stop()
             recorder.release()
-            return null
+            if (peak >= AUDIO_PRESENT_PEAK) {
+                boundBluetoothInput = if (bindDevice) bluetoothInput else null
+                return create(source).also { r ->
+                    if (bindDevice && bluetoothInput != null) runCatching { r.setPreferredDevice(bluetoothInput) }
+                }
+            }
+            // Ruta bien enrutada con el canal de voz abierto pero en silencio: válida si ninguna otra fuente suena.
+            if (silentButValid == null && routedBluetooth && (scoConnected || commDeviceOk)) silentButValid = source
         }
+        val fallbackSource = silentButValid ?: return if (trustSilence) {
+            create(sources.first()).also { boundBluetoothInput = if (bindDevice) bluetoothInput else null }
+        } else null
         boundBluetoothInput = if (bindDevice) bluetoothInput else null
-
-        recorder.startRecording()
-        val probe = ShortArray(1_600)
-        var peak = 0
-        val end = System.currentTimeMillis() + 1_000
-        while (System.currentTimeMillis() < end) {
-            val n = recorder.read(probe, 0, probe.size)
-            if (n <= 0) break
-            for (i in 0 until n) peak = maxOf(peak, kotlin.math.abs(probe[i].toInt()))
+        return create(fallbackSource).also { r ->
+            if (bindDevice && bluetoothInput != null) runCatching { r.setPreferredDevice(bluetoothInput) }
         }
-        val routed = runCatching { recorder.routedDevice }.getOrNull()
-        val routedBluetooth = routed != null && (routed.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
-            routed.type == 26 || routed.type == 23)
-        BluetoothDiagnosticLog.add(
-            "Ruta ${strategy.label}: pico=$peak, dispositivo real=${routed?.productName}/tipo ${routed?.type}, " +
-                "BT-entrada=${bluetoothInput?.productName}, SCO=${manager.isBluetoothScoOn}, modo=${manager.mode}"
-        )
-        recorder.stop()
-        // Un micrófono Bluetooth que está bien enrutado pero en silencio (nadie habla) NO es un fallo: se acepta.
-        // Solo cuenta si el canal de voz Bluetooth (SCO / dispositivo de comunicación) está realmente abierto;
-        // la ruta D (micrófono normal sin SCO) puede decir "Bluetooth" y entregar silencio, así que exige audio.
-        if (routedBluetooth && (scoConnected || commDeviceOk)) return recorder
-        // Muchos micrófonos Bluetooth cortan el sonido (silencio digital) cuando nadie habla; una ruta que ya funcionó
-        // antes con este auricular se acepta aunque el segundo de prueba sea silencio.
-        if (peak < AUDIO_PRESENT_PEAK && !trustSilence) {
-            recorder.release()
-            return null
-        }
-        return recorder
     }
 
     fun release() {
