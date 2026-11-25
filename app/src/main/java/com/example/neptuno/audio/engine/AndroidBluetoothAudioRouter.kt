@@ -26,7 +26,6 @@ class AndroidBluetoothAudioRouter(context: Context) {
     private val audioManager =
         context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
-    private var originalAudioMode: Int? = null
     private var legacyScoRequested = false
     private var communicationDeviceSelected = false
     private var boundBluetoothInput: AudioDeviceInfo? = null
@@ -78,7 +77,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
             if (communicationOutput != null) {
                 // Sin MODE_IN_COMMUNICATION muchos auriculares nunca abren el canal de micrófono (SCO/HFP):
                 // la captura llegaba en silencio (0 %).
-                if (originalAudioMode == null) originalAudioMode = manager.mode
+                rememberOriginalMode(manager)
                 runCatching { manager.mode = AudioManager.MODE_IN_COMMUNICATION }
                 val accepted = runCatching {
                     manager.setCommunicationDevice(communicationOutput)
@@ -90,7 +89,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 }
             }
         } else if (communicationOutput?.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
-            originalAudioMode = manager.mode
+            rememberOriginalMode(manager)
             runCatching {
                 manager.mode = AudioManager.MODE_IN_COMMUNICATION
                 @Suppress("DEPRECATION")
@@ -183,7 +182,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
             preferredInput?.type
         ) ?: return phoneFallback(noBluetoothMicReason())
 
-        originalAudioMode = manager.mode
+        rememberOriginalMode(manager)
         val modeAccepted = runCatching {
             manager.mode = AudioManager.MODE_IN_COMMUNICATION
             true
@@ -343,9 +342,10 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 val name = communicationOutput.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Bluetooth"
                 val order = orderedStrategies(name)
                 val tried = mutableListOf<String>()
+                val remembered = rememberedStrategy(name)
                 for (strategy in order) {
                     val recorder = runCatching {
-                        attemptBluetooth(manager, strategy, communicationOutput, ::newRecorder)
+                        attemptBluetooth(manager, strategy, communicationOutput, ::newRecorder, trustSilence = strategy == remembered)
                     }.getOrNull()
                     if (recorder != null) {
                         rememberStrategy(name, strategy)
@@ -390,6 +390,12 @@ class AndroidBluetoothAudioRouter(context: Context) {
         return if (first != null) listOf(first) + all.filter { it != first } else all
     }
 
+    private fun rememberedStrategy(deviceName: String): ScoStrategy? {
+        val saved = appContext.getSharedPreferences("bt_route", Context.MODE_PRIVATE)
+            .getString("strategy_$deviceName", null)
+        return ScoStrategy.values().firstOrNull { it.name == saved }
+    }
+
     private fun rememberStrategy(deviceName: String, strategy: ScoStrategy) {
         appContext.getSharedPreferences("bt_route", Context.MODE_PRIVATE)
             .edit().putString("strategy_$deviceName", strategy.name).apply()
@@ -401,12 +407,13 @@ class AndroidBluetoothAudioRouter(context: Context) {
         manager: AudioManager,
         strategy: ScoStrategy,
         communicationOutput: AudioDeviceInfo,
-        create: (Int) -> AudioRecord
+        create: (Int) -> AudioRecord,
+        trustSilence: Boolean = false
     ): AudioRecord? {
         releaseBluetoothRoute(manager)
         val modeNeeded = strategy != ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE
         if (modeNeeded) {
-            originalAudioMode = manager.mode
+            rememberOriginalMode(manager)
             manager.mode = AudioManager.MODE_IN_COMMUNICATION
         }
         val useCommunicationDevice = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -450,7 +457,9 @@ class AndroidBluetoothAudioRouter(context: Context) {
             for (i in 0 until n) peak = maxOf(peak, kotlin.math.abs(probe[i].toInt()))
         }
         recorder.stop()
-        if (peak < AUDIO_PRESENT_PEAK) {
+        // Muchos micrófonos Bluetooth cortan el sonido (silencio digital) cuando nadie habla; una ruta que ya funcionó
+        // antes con este auricular se acepta aunque el segundo de prueba sea silencio.
+        if (peak < AUDIO_PRESENT_PEAK && !trustSilence) {
             recorder.release()
             return null
         }
@@ -463,7 +472,28 @@ class AndroidBluetoothAudioRouter(context: Context) {
         releaseBluetoothRoute(manager)
     }
 
+    /** Guarda el modo de audio original (solo el primero que abre la ruta) y marca a este router como dueño de la ruta. */
+    private fun rememberOriginalMode(manager: AudioManager) {
+        synchronized(SharedRoute) {
+            if (SharedRoute.originalMode == null) SharedRoute.originalMode = manager.mode
+            SharedRoute.owners.add(this)
+        }
+    }
+
+    /**
+     * Cierra la ruta Bluetooth SOLO si ningún otro componente la sigue usando. Antes, al terminar el dictado (STT) se
+     * apagaba el SCO que "Hey Neptuno" (Vosk) seguía usando y su micrófono quedaba mudo sin avisar.
+     */
     private fun releaseBluetoothRoute(manager: AudioManager) {
+        val othersStillUse = synchronized(SharedRoute) {
+            SharedRoute.owners.remove(this)
+            SharedRoute.owners.isNotEmpty()
+        }
+        if (othersStillUse) {
+            communicationDeviceSelected = false
+            legacyScoRequested = false
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && communicationDeviceSelected) {
             runCatching { manager.clearCommunicationDevice() }
             communicationDeviceSelected = false
@@ -475,10 +505,18 @@ class AndroidBluetoothAudioRouter(context: Context) {
             }
             legacyScoRequested = false
         }
-        originalAudioMode?.let { previousMode ->
-            runCatching { manager.mode = previousMode }
-            originalAudioMode = null
+        synchronized(SharedRoute) {
+            SharedRoute.originalMode?.let { previousMode ->
+                runCatching { manager.mode = previousMode }
+                SharedRoute.originalMode = null
+            }
         }
+    }
+
+    /** Estado compartido entre todos los routers del proceso (el audio del sistema es único). */
+    private object SharedRoute {
+        val owners = mutableSetOf<AndroidBluetoothAudioRouter>()
+        var originalMode: Int? = null
     }
 
     companion object {

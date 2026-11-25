@@ -27,6 +27,21 @@ object BluetoothMicHealth {
 
     fun reset() {
         failedAtMillis = 0L
+        consecutiveSilentTurns = 0
+    }
+
+    /** Turnos seguidos con micrófono Bluetooth sin voz ni nivel (puede ser el usuario callado o un micrófono mudo). */
+    @Volatile private var consecutiveSilentTurns = 0
+    const val SILENT_TURNS_TO_BLOCK = 3
+
+    /** Devuelve true cuando ya son suficientes turnos seguidos mudos como para bloquear el Bluetooth. */
+    fun noteSilentBluetoothTurn(): Boolean {
+        consecutiveSilentTurns++
+        return consecutiveSilentTurns >= SILENT_TURNS_TO_BLOCK
+    }
+
+    fun noteSpeechHeard() {
+        consecutiveSilentTurns = 0
     }
 
     fun isBlocked(nowMillis: Long = System.currentTimeMillis()): Boolean =

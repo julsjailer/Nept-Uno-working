@@ -220,26 +220,14 @@ class VoskWakeWordEngine(
     private fun listenLoop(recorder: AudioRecord, activeRecognizer: Recognizer) {
         val buffer = ShortArray(CHUNK_SAMPLES)
         var lastDetectionAt = 0L
-        // Comprobación de salud del micrófono Bluetooth: si en ~2 s todo es silencio digital, no llega audio.
-        var checkedChunks = 0
-        var peak = 0
-        val verifyBluetooth = routeIsBluetooth
+        // La salud del micrófono Bluetooth ya se valida al abrirlo (openRecorder); aquí NO se marca como fallido por
+        // silencio, porque muchos micrófonos Bluetooth envían silencio digital cuando nadie habla.
         try {
             while (_state.value == WakeWordState.LISTENING) {
                 val count = recorder.read(buffer, 0, buffer.size)
                 if (count <= 0) {
                     if (_state.value != WakeWordState.LISTENING) break
                     throw IOException("La captura de audio se interrumpió (código $count).")
-                }
-                if (verifyBluetooth && checkedChunks < BLUETOOTH_VERIFY_CHUNKS) {
-                    for (i in 0 until count) peak = maxOf(peak, kotlin.math.abs(buffer[i].toInt()))
-                    checkedChunks++
-                    if (checkedChunks == BLUETOOTH_VERIFY_CHUNKS && peak < BLUETOOTH_SILENCE_PEAK) {
-                        BluetoothMicHealth.markFailed()
-                        AudioRouteNotice.set("🎙️ El micrófono Bluetooth no envía audio; escucho con el micrófono del teléfono.")
-                        scheduleInputRouteRefresh(force = true)
-                        return
-                    }
                 }
                 // Solo se miran resultados FINALES (tras una pausa): los parciales de Vosk con gramática reducida
                 // "alucinan" la palabra clave con casi cualquier sonido.

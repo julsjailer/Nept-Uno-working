@@ -231,6 +231,7 @@ class AndroidSpeechToTextEngine(
 
             override fun onBeginningOfSpeech() {
                 sawSpeech = true
+                BluetoothMicHealth.noteSpeechHeard()
                 _isListening.value = true
             }
 
@@ -252,14 +253,13 @@ class AndroidSpeechToTextEngine(
                 bluetoothAudioRouter.release()
                 activeInputRoute = null
 
-                val silentError = error == SpeechRecognizer.ERROR_AUDIO ||
-                    error == SpeechRecognizer.ERROR_NO_MATCH ||
-                    error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
-                if (bluetoothWasActive && silentError && !sawSpeech && maxRmsDb <= 0.5f && !retriedOnPhone) {
-                    // Los auriculares están conectados pero no llega audio: se marca y se reintenta con el teléfono.
+                // Un fallo de captura real (ERROR_AUDIO) con Bluetooth: se cambia al teléfono y se reintenta una vez.
+                // Un simple "no te oí"/"silencio" NO es una desconexión: solo se cuenta; tras varios seguidos sin voz ni
+                // nivel de audio se deja de usar el Bluetooth. (Antes un turno callado hacía volver al teléfono.)
+                if (bluetoothWasActive && error == SpeechRecognizer.ERROR_AUDIO && !retriedOnPhone) {
                     retriedOnPhone = true
                     BluetoothMicHealth.markFailed()
-                    AudioRouteNotice.set("🎙️ El micrófono Bluetooth no captó audio; cambié al micrófono del teléfono.")
+                    AudioRouteNotice.set("🎙️ El micrófono Bluetooth falló al capturar; cambié al micrófono del teléfono.")
                     retryScope.launch {
                         delay(400)
                         internalRetry = true
@@ -267,11 +267,22 @@ class AndroidSpeechToTextEngine(
                     }
                     return
                 }
+                val silentTurn = error == SpeechRecognizer.ERROR_NO_MATCH ||
+                    error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                if (bluetoothWasActive && silentTurn && !sawSpeech && maxRmsDb <= 0.5f &&
+                    BluetoothMicHealth.noteSilentBluetoothTurn()
+                ) {
+                    BluetoothMicHealth.markFailed()
+                    AudioRouteNotice.set(
+                        "🎙️ El micrófono Bluetooth no captó voz en varios turnos seguidos; uso el del teléfono unos minutos."
+                    )
+                }
                 val mapped = mapRecognitionError(error)
                 _events.tryEmit(mapped)
             }
 
             override fun onResults(results: Bundle?) {
+                BluetoothMicHealth.noteSpeechHeard()
                 activeSession = false
                 _isListening.value = false
                 bluetoothAudioRouter.release()
