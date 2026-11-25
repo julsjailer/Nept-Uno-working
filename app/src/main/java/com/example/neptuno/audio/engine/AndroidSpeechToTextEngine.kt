@@ -252,6 +252,9 @@ class AndroidSpeechToTextEngine(
                 val bluetoothWasActive = activeInputRoute?.isBluetooth == true
                 bluetoothAudioRouter.release()
                 activeInputRoute = null
+                BluetoothDiagnosticLog.add(
+                    "STT error=$error, bluetooth=$bluetoothWasActive, vozOida=$sawSpeech, nivelMax=$maxRmsDb"
+                )
 
                 // Un fallo de captura real (ERROR_AUDIO) con Bluetooth: se cambia al teléfono y se reintenta una vez.
                 // Un simple "no te oí"/"silencio" NO es una desconexión: solo se cuenta; tras varios seguidos sin voz ni

@@ -44,6 +44,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -175,6 +178,22 @@ fun BluetoothScreen(
                                 modifier = Modifier.weight(1f).testTag("bluetooth_use_auto")
                             ) { Text("Volver a automático") }
                         }
+                        val diagContext = LocalContext.current
+                        var diagCopied by remember { mutableStateOf(false) }
+                        OutlinedButton(
+                            onClick = {
+                                val cm = diagContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                    as android.content.ClipboardManager
+                                cm.setPrimaryClip(
+                                    android.content.ClipData.newPlainText(
+                                        "Informe Bluetooth",
+                                        com.example.neptuno.audio.engine.BluetoothDiagnosticLog.report()
+                                    )
+                                )
+                                diagCopied = true
+                            },
+                            modifier = Modifier.fillMaxWidth().testTag("bluetooth_copy_report")
+                        ) { Text(if (diagCopied) "Informe copiado (pégalo en el chat)" else "Copiar informe técnico") }
                     }
                 }
             }

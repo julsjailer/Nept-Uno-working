@@ -338,6 +338,11 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 else -> preferBluetooth && !BluetoothMicHealth.isBlocked()
             }
             val communicationOutput = findBluetoothCommunicationOutput(manager, explicit?.type)
+            BluetoothDiagnosticLog.add(
+                "Abrir micrófono: BT=$wantsBluetooth, salida comunicación=${communicationOutput?.productName}, " +
+                    "entradas=" + inputs.joinToString { "${it.productName}/${it.type}" } +
+                    ", Android ${Build.VERSION.SDK_INT}"
+            )
             if (wantsBluetooth && communicationOutput != null) {
                 val name = communicationOutput.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Bluetooth"
                 val order = orderedStrategies(name)
@@ -352,6 +357,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
                         AudioRouteNotice.set("🎧 Usando el micrófono Bluetooth: $name (ruta ${strategy.label})")
                         return recorder to AudioInputRouteSelection("Micrófono Bluetooth · $name", true)
                     }
+                    BluetoothDiagnosticLog.add("Ruta ${strategy.label} descartada")
                     tried += strategy.label
                     releaseBluetoothRoute(manager)
                 }
@@ -456,7 +462,16 @@ class AndroidBluetoothAudioRouter(context: Context) {
             if (n <= 0) break
             for (i in 0 until n) peak = maxOf(peak, kotlin.math.abs(probe[i].toInt()))
         }
+        val routed = runCatching { recorder.routedDevice }.getOrNull()
+        val routedBluetooth = routed != null && (routed.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+            routed.type == 26 || routed.type == 23)
+        BluetoothDiagnosticLog.add(
+            "Ruta ${strategy.label}: pico=$peak, dispositivo real=${routed?.productName}/tipo ${routed?.type}, " +
+                "BT-entrada=${bluetoothInput?.productName}, SCO=${manager.isBluetoothScoOn}, modo=${manager.mode}"
+        )
         recorder.stop()
+        // Un micrófono Bluetooth que está bien enrutado pero en silencio (nadie habla) NO es un fallo: se acepta.
+        if (routedBluetooth) return recorder
         // Muchos micrófonos Bluetooth cortan el sonido (silencio digital) cuando nadie habla; una ruta que ya funcionó
         // antes con este auricular se acepta aunque el segundo de prueba sea silencio.
         if (peak < AUDIO_PRESENT_PEAK && !trustSilence) {
