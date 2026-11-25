@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -509,6 +513,10 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    AccentColorPicker(
+                        currentArgb = prefs.themeAccentArgb,
+                        onSelected = { viewModel.setThemeAccent(it) }
+                    )
                 }
             }
 
@@ -603,4 +611,84 @@ private fun AboutInfoRow(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurface
         )
     }
+}
+
+private val ACCENT_PRESETS = listOf(
+    "Océano" to 0f,
+    "Violeta" to 270f,
+    "Esmeralda" to 150f,
+    "Atardecer" to 22f,
+    "Rosa" to 330f,
+    "Dorado" to 45f,
+    "Rojo" to 355f,
+    "Turquesa" to 185f
+)
+
+/** Colores preseleccionados + croma libre (barra de tono). 0 = paleta original. */
+@Composable
+private fun AccentColorPicker(currentArgb: Int, onSelected: (Int) -> Unit) {
+    fun argbForHue(hue: Float): Int = androidx.compose.ui.graphics.Color.hsv(hue, 0.75f, 0.95f).toArgb()
+    val currentHue = if (currentArgb == 0) 200f else com.example.ui.theme.accentHue(currentArgb)
+    var sliderHue by androidx.compose.runtime.remember(currentArgb) {
+        androidx.compose.runtime.mutableFloatStateOf(currentHue)
+    }
+    Spacer(modifier = Modifier.height(12.dp))
+    Text(
+        text = "Color de la interfaz",
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurface
+    )
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.padding(vertical = 8.dp)
+    ) {
+        items(ACCENT_PRESETS) { (label, hueOrZero) ->
+            val isDefault = label == "Océano"
+            val argb = if (isDefault) 0 else argbForHue(hueOrZero)
+            val selected = if (isDefault) currentArgb == 0 else currentArgb == argb
+            val swatch = if (isDefault) androidx.compose.ui.graphics.Color(0xFF4DA3FF)
+            else androidx.compose.ui.graphics.Color(argb)
+            Column(
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clickable { onSelected(argb) }
+                    .testTag("settings_accent_$label")
+            ) {
+                Surface(
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = swatch,
+                    border = BorderStroke(
+                        if (selected) 3.dp else 1.dp,
+                        if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline
+                    ),
+                    modifier = Modifier.size(40.dp)
+                ) {}
+                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+    Text(
+        text = "Croma (elige cualquier tono)",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    val rainbow = androidx.compose.ui.graphics.Brush.horizontalGradient(
+        (0..12).map { androidx.compose.ui.graphics.Color.hsv(it * 30f % 360f, 0.75f, 0.95f) }
+    )
+    Surface(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+        color = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.fillMaxWidth().height(10.dp).padding(horizontal = 4.dp)
+    ) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            drawRect(brush = rainbow)
+        }
+    }
+    androidx.compose.material3.Slider(
+        value = sliderHue,
+        onValueChange = { sliderHue = it },
+        onValueChangeFinished = { onSelected(argbForHue(sliderHue)) },
+        valueRange = 0f..360f,
+        modifier = Modifier.fillMaxWidth().testTag("settings_accent_slider")
+    )
 }

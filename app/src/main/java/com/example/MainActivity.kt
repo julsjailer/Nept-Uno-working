@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
             val appScope = rememberCoroutineScope()
             var showOptionalAuthScreen by rememberSaveable { mutableStateOf(false) }
 
-            NeptunoTheme(darkTheme = darkTheme) {
+            NeptunoTheme(darkTheme = darkTheme, accentArgb = prefs.themeAccentArgb) {
                 if (showOptionalAuthScreen) {
                     AuthScreen(
                         onAuthSuccess = { showOptionalAuthScreen = false },

@@ -314,8 +314,9 @@ class AndroidBluetoothAudioRouter(context: Context) {
     }
 
     /**
-     * Crea el AudioRecord adecuado y lo enruta. Con micrófono Bluetooth usa VOICE_COMMUNICATION (la fuente que Android
-     * enruta por SCO; con VOICE_RECOGNITION muchos auriculares dan silencio); con el teléfono usa VOICE_RECOGNITION.
+     * Crea el AudioRecord y lo enruta. Si hay que usar un micrófono Bluetooth (HFP/SCO), prueba varias formas de abrir
+     * el canal —cada auricular/ROM se comporta distinto— y se queda con la primera por la que REALMENTE llega audio
+     * (mide ~1 s). La que funciona se recuerda por dispositivo. Si ninguna entrega audio, vuelve al micrófono del teléfono.
      */
     @android.annotation.SuppressLint("MissingPermission")
     suspend fun openRecorder(
@@ -328,15 +329,132 @@ class AndroidBluetoothAudioRouter(context: Context) {
             source, sampleRate, android.media.AudioFormat.CHANNEL_IN_MONO,
             android.media.AudioFormat.ENCODING_PCM_16BIT, bufferBytes
         )
-        var recorder = newRecorder(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION)
-        val selection = configureInput(recorder, preferredInputId, preferBluetooth)
-        val device = boundBluetoothInput
-        if (selection.isBluetooth && device != null) {
-            runCatching { recorder.release() }
-            recorder = newRecorder(android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION)
-            runCatching { recorder.setPreferredDevice(device) }
+        val manager = audioManager
+        if (manager != null) {
+            release()
+            val inputs = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).toList()
+            val explicit = preferredInputId?.let { id -> inputs.firstOrNull { it.id == id } }
+            val wantsBluetooth = when {
+                explicit != null -> isBluetoothInput(explicit)
+                else -> preferBluetooth && !BluetoothMicHealth.isBlocked()
+            }
+            val communicationOutput = findBluetoothCommunicationOutput(manager, explicit?.type)
+            if (wantsBluetooth && communicationOutput != null) {
+                val name = communicationOutput.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Bluetooth"
+                val order = orderedStrategies(name)
+                val tried = mutableListOf<String>()
+                for (strategy in order) {
+                    val recorder = runCatching {
+                        attemptBluetooth(manager, strategy, communicationOutput, ::newRecorder)
+                    }.getOrNull()
+                    if (recorder != null) {
+                        rememberStrategy(name, strategy)
+                        AudioRouteNotice.set("🎧 Usando el micrófono Bluetooth: $name (ruta ${strategy.label})")
+                        return recorder to AudioInputRouteSelection("Micrófono Bluetooth · $name", true)
+                    }
+                    tried += strategy.label
+                    releaseBluetoothRoute(manager)
+                }
+                BluetoothMicHealth.markFailed()
+                AudioRouteNotice.set(
+                    "🎙️ Probé ${tried.size} formas de abrir el micrófono de «$name» (${tried.joinToString()}) y ninguna " +
+                        "entrega audio; uso el micrófono del teléfono y respondo por los auriculares."
+                )
+                release()
+                val phone = newRecorder(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                return phone to AudioInputRouteSelection("Micrófono predeterminado del teléfono", false)
+            }
         }
+        val recorder = newRecorder(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION)
+        val selection = configureInput(recorder, preferredInputId, preferBluetooth)
         return recorder to selection
+    }
+
+    /** Formas de abrir el micrófono Bluetooth, de la más estándar a la más permisiva. */
+    enum class ScoStrategy(val label: String) {
+        COMMUNICATION_DEVICE_AND_SCO("A"),
+        COMMUNICATION_DEVICE_ONLY("B"),
+        LEGACY_SCO_ONLY("C"),
+        PLAIN_MIC_PREFERRED_DEVICE("D")
+    }
+
+    private fun orderedStrategies(deviceName: String): List<ScoStrategy> {
+        val all = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ScoStrategy.values().toList()
+        } else {
+            listOf(ScoStrategy.LEGACY_SCO_ONLY, ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE)
+        }
+        val remembered = appContext.getSharedPreferences("bt_route", Context.MODE_PRIVATE)
+            .getString("strategy_$deviceName", null)
+        val first = all.firstOrNull { it.name == remembered }
+        return if (first != null) listOf(first) + all.filter { it != first } else all
+    }
+
+    private fun rememberStrategy(deviceName: String, strategy: ScoStrategy) {
+        appContext.getSharedPreferences("bt_route", Context.MODE_PRIVATE)
+            .edit().putString("strategy_$deviceName", strategy.name).apply()
+    }
+
+    /** Abre el canal con una estrategia y devuelve el AudioRecord solo si en ~1 s llegó audio real (no silencio). */
+    @android.annotation.SuppressLint("MissingPermission")
+    private suspend fun attemptBluetooth(
+        manager: AudioManager,
+        strategy: ScoStrategy,
+        communicationOutput: AudioDeviceInfo,
+        create: (Int) -> AudioRecord
+    ): AudioRecord? {
+        releaseBluetoothRoute(manager)
+        val modeNeeded = strategy != ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE
+        if (modeNeeded) {
+            originalAudioMode = manager.mode
+            manager.mode = AudioManager.MODE_IN_COMMUNICATION
+        }
+        val useCommunicationDevice = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            (strategy == ScoStrategy.COMMUNICATION_DEVICE_AND_SCO || strategy == ScoStrategy.COMMUNICATION_DEVICE_ONLY)
+        val useLegacySco = strategy == ScoStrategy.COMMUNICATION_DEVICE_AND_SCO ||
+            strategy == ScoStrategy.LEGACY_SCO_ONLY
+        if (useCommunicationDevice && manager.setCommunicationDevice(communicationOutput)) {
+            communicationDeviceSelected = true
+            awaitCommunicationDevice(manager, communicationOutput)
+        }
+        if (useLegacySco) {
+            @Suppress("DEPRECATION")
+            manager.startBluetoothSco()
+            legacyScoRequested = true
+            awaitLegacySco(manager)
+        }
+        delay(BLUETOOTH_ROUTE_SETTLE_MS)
+
+        val bluetoothInput = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).firstOrNull(::isBluetoothInput)
+        val source = if (strategy == ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE) {
+            android.media.MediaRecorder.AudioSource.MIC
+        } else {
+            android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
+        }
+        val recorder = create(source)
+        val bindDevice = strategy != ScoStrategy.COMMUNICATION_DEVICE_ONLY && strategy != ScoStrategy.LEGACY_SCO_ONLY
+        if (bindDevice && bluetoothInput != null) runCatching { recorder.setPreferredDevice(bluetoothInput) }
+        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+            recorder.release()
+            return null
+        }
+        boundBluetoothInput = if (bindDevice) bluetoothInput else null
+
+        recorder.startRecording()
+        val probe = ShortArray(1_600)
+        var peak = 0
+        val end = System.currentTimeMillis() + 1_000
+        while (System.currentTimeMillis() < end) {
+            val n = recorder.read(probe, 0, probe.size)
+            if (n <= 0) break
+            for (i in 0 until n) peak = maxOf(peak, kotlin.math.abs(probe[i].toInt()))
+        }
+        recorder.stop()
+        if (peak < AUDIO_PRESENT_PEAK) {
+            recorder.release()
+            return null
+        }
+        return recorder
     }
 
     fun release() {
@@ -367,6 +485,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
         private const val BLUETOOTH_ROUTE_SETTLE_MS = 350L
         private const val LEGACY_SCO_TIMEOUT_MS = 3_000L
         private const val SCO_POLL_INTERVAL_MS = 100L
+        private const val AUDIO_PRESENT_PEAK = 3
     }
 }
 

@@ -142,6 +142,8 @@ data class UserPreferences(
     val avatarStyle: AvatarStyle = AvatarStyle.ABYSSAL_CORE,
     val language: AppLanguage = AppLanguage.SPANISH,
     val themeMode: ThemeMode = ThemeMode.DARK,
+    /** Color de acento elegido (ARGB). 0 = paleta original de NEPTUNO. */
+    val themeAccentArgb: Int = 0,
     val offlineMode: Boolean = false,
     val bargeInEnabled: Boolean = true,
     val autoSendVoice: Boolean = true,

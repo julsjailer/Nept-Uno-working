@@ -42,6 +42,7 @@ class UserPreferencesRepository(context: Context) {
         val AVATAR_STYLE = stringPreferencesKey("avatar_style")
         val LANGUAGE = stringPreferencesKey("language")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val THEME_ACCENT = androidx.datastore.preferences.core.intPreferencesKey("theme_accent_argb")
         val OFFLINE_MODE = booleanPreferencesKey("offline_mode")
         val BARGE_IN_ENABLED = booleanPreferencesKey("barge_in_enabled")
         val AUTO_SEND_VOICE = booleanPreferencesKey("auto_send_voice")
@@ -75,6 +76,7 @@ class UserPreferencesRepository(context: Context) {
                     ?: AvatarStyle.ABYSSAL_CORE,
                 language = AppLanguage.entries.find { it.code == prefs[Keys.LANGUAGE] }
                     ?: AppLanguage.SPANISH,
+                themeAccentArgb = prefs[Keys.THEME_ACCENT] ?: 0,
                 themeMode = ThemeMode.entries.find { it.id == prefs[Keys.THEME_MODE] }
                     ?: ThemeMode.DARK,
                 offlineMode = prefs[Keys.OFFLINE_MODE] ?: false,
@@ -123,6 +125,10 @@ class UserPreferencesRepository(context: Context) {
 
     suspend fun setLanguage(language: AppLanguage) {
         dataStore.edit { it[Keys.LANGUAGE] = language.code }
+    }
+
+    suspend fun setThemeAccent(argb: Int) {
+        dataStore.edit { it[Keys.THEME_ACCENT] = argb }
     }
 
     suspend fun setThemeMode(themeMode: ThemeMode) {

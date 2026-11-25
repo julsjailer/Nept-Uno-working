@@ -169,6 +169,10 @@ class SettingsViewModel(
         preferencesRepository.setLanguage(language)
     }
 
+    fun setThemeAccent(argb: Int) = viewModelScope.launch {
+        preferencesRepository.setThemeAccent(argb)
+    }
+
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch {
         preferencesRepository.setThemeMode(mode)
     }
