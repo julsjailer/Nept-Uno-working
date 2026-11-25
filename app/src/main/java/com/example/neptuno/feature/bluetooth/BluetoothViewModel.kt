@@ -150,16 +150,16 @@ class BluetoothViewModel(
             sampleRate, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT
         )
         if (minBuffer <= 0) return "Android no pudo preparar el micrófono."
-        val recorder = android.media.AudioRecord(
-            android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, sampleRate,
-            android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT,
-            maxOf(minBuffer * 2, sampleRate)
-        )
         val router = com.example.neptuno.audio.engine.AndroidBluetoothAudioRouter(appContext)
+        val prefs = preferencesRepository.userPreferences.first()
+        val (recorder, selection) = router.openRecorder(
+            sampleRate = sampleRate,
+            bufferBytes = maxOf(minBuffer * 2, sampleRate),
+            preferredInputId = prefs.preferredAudioInputId,
+            preferBluetooth = prefs.preferBluetoothAudio
+        )
         try {
             if (recorder.state != android.media.AudioRecord.STATE_INITIALIZED) return "No se pudo abrir el micrófono."
-            val prefs = preferencesRepository.userPreferences.first()
-            val selection = router.configureInput(recorder, prefs.preferredAudioInputId, prefs.preferBluetoothAudio)
             recorder.startRecording()
             val buffer = ShortArray(1_600)
             var peak = 0

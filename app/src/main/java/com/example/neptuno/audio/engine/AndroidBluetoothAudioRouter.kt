@@ -29,6 +29,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
     private var originalAudioMode: Int? = null
     private var legacyScoRequested = false
     private var communicationDeviceSelected = false
+    private var boundBluetoothInput: AudioDeviceInfo? = null
 
     suspend fun configureInput(
         recorder: AudioRecord,
@@ -75,11 +76,16 @@ class AndroidBluetoothAudioRouter(context: Context) {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (communicationOutput != null) {
+                // Sin MODE_IN_COMMUNICATION muchos auriculares nunca abren el canal de micrófono (SCO/HFP):
+                // la captura llegaba en silencio (0 %).
+                if (originalAudioMode == null) originalAudioMode = manager.mode
+                runCatching { manager.mode = AudioManager.MODE_IN_COMMUNICATION }
                 val accepted = runCatching {
                     manager.setCommunicationDevice(communicationOutput)
                 }.getOrDefault(false)
                 if (accepted) {
                     communicationDeviceSelected = true
+                    awaitCommunicationDevice(manager, communicationOutput)
                     delay(BLUETOOTH_ROUTE_SETTLE_MS)
                 }
             }
@@ -91,14 +97,8 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 manager.startBluetoothSco()
                 legacyScoRequested = true
             }
-            withTimeoutOrNull(LEGACY_SCO_TIMEOUT_MS) {
-                while (!runCatching {
-                    @Suppress("DEPRECATION")
-                    manager.isBluetoothScoOn
-                }.getOrDefault(false)) {
-                    delay(SCO_POLL_INTERVAL_MS)
-                }
-            }
+            awaitLegacySco(manager)
+            delay(BLUETOOTH_ROUTE_SETTLE_MS)
         }
 
         val availableInputs = manager.getDevices(AudioManager.GET_DEVICES_INPUTS)
@@ -141,6 +141,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
         val accepted = runCatching { recorder.setPreferredDevice(device) }.getOrDefault(false)
         if (!accepted) return null
         val bluetooth = isBluetoothInput(device)
+        boundBluetoothInput = if (bluetooth) device else null
         val name = device.productName?.toString()?.takeIf { it.isNotBlank() }
             ?: if (bluetooth) "Micrófono Bluetooth" else "Micrófono externo"
         return AudioInputRouteSelection(name, bluetooth)
@@ -201,6 +202,7 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 return phoneFallback("Android rechazó los auriculares como micrófono")
             }
             communicationDeviceSelected = true
+            awaitCommunicationDevice(manager, communicationOutput)
             delay(BLUETOOTH_ROUTE_SETTLE_MS)
         } else if (communicationOutput.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
             runCatching {
@@ -211,15 +213,8 @@ class AndroidBluetoothAudioRouter(context: Context) {
                 releaseBluetoothRoute(manager)
                 return phoneFallback("no se pudo iniciar la conexión del micrófono Bluetooth (SCO)")
             }
-            val connected = withTimeoutOrNull(LEGACY_SCO_TIMEOUT_MS) {
-                while (!runCatching {
-                    @Suppress("DEPRECATION")
-                    manager.isBluetoothScoOn
-                }.getOrDefault(false)) {
-                    delay(SCO_POLL_INTERVAL_MS)
-                }
-                true
-            } ?: false
+            val connected = awaitLegacySco(manager)
+            if (connected) delay(BLUETOOTH_ROUTE_SETTLE_MS)
             if (!connected) {
                 releaseBluetoothRoute(manager)
                 return phoneFallback("los auriculares no activaron su canal de micrófono (SCO)")
@@ -280,7 +275,72 @@ class AndroidBluetoothAudioRouter(context: Context) {
         runCatching { audioManager?.unregisterAudioDeviceCallback(callback) }
     }
 
+    /** Espera (máx. 3 s) a que Android confirme el dispositivo de comunicación Bluetooth (Android 12+). */
+    private suspend fun awaitCommunicationDevice(manager: AudioManager, target: AudioDeviceInfo) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        withTimeoutOrNull(LEGACY_SCO_TIMEOUT_MS) {
+            while (runCatching { manager.communicationDevice?.id }.getOrNull() != target.id) {
+                delay(SCO_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    /** Espera a que el canal SCO esté realmente CONECTADO (broadcast de Android), no solo "encendido". */
+    private suspend fun awaitLegacySco(manager: AudioManager): Boolean {
+        val filter = android.content.IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
+        fun connectedIn(intent: android.content.Intent?): Boolean =
+            intent?.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1) == AudioManager.SCO_AUDIO_STATE_CONNECTED
+        val sticky = runCatching { appContext.registerReceiver(null, filter) }.getOrNull()
+        if (connectedIn(sticky)) return true
+        val result = withTimeoutOrNull(LEGACY_SCO_TIMEOUT_MS + 1_000L) {
+            kotlinx.coroutines.suspendCancellableCoroutine<Boolean> { continuation ->
+                val receiver = object : android.content.BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: android.content.Intent?) {
+                        if (connectedIn(intent) && continuation.isActive) continuation.resumeWith(Result.success(true))
+                    }
+                }
+                runCatching { appContext.registerReceiver(receiver, filter) }
+                continuation.invokeOnCancellation { runCatching { appContext.unregisterReceiver(receiver) } }
+                // Por si el estado ya cambió entre el sticky y el registro.
+                if (runCatching { @Suppress("DEPRECATION") manager.isBluetoothScoOn }.getOrDefault(false) &&
+                    connectedIn(runCatching { appContext.registerReceiver(null, filter) }.getOrNull())
+                ) {
+                    if (continuation.isActive) continuation.resumeWith(Result.success(true))
+                }
+            }
+        }
+        return result == true ||
+            runCatching { @Suppress("DEPRECATION") manager.isBluetoothScoOn }.getOrDefault(false)
+    }
+
+    /**
+     * Crea el AudioRecord adecuado y lo enruta. Con micrófono Bluetooth usa VOICE_COMMUNICATION (la fuente que Android
+     * enruta por SCO; con VOICE_RECOGNITION muchos auriculares dan silencio); con el teléfono usa VOICE_RECOGNITION.
+     */
+    @android.annotation.SuppressLint("MissingPermission")
+    suspend fun openRecorder(
+        sampleRate: Int,
+        bufferBytes: Int,
+        preferredInputId: Int?,
+        preferBluetooth: Boolean
+    ): Pair<AudioRecord, AudioInputRouteSelection> {
+        fun newRecorder(source: Int) = AudioRecord(
+            source, sampleRate, android.media.AudioFormat.CHANNEL_IN_MONO,
+            android.media.AudioFormat.ENCODING_PCM_16BIT, bufferBytes
+        )
+        var recorder = newRecorder(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION)
+        val selection = configureInput(recorder, preferredInputId, preferBluetooth)
+        val device = boundBluetoothInput
+        if (selection.isBluetooth && device != null) {
+            runCatching { recorder.release() }
+            recorder = newRecorder(android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+            runCatching { recorder.setPreferredDevice(device) }
+        }
+        return recorder to selection
+    }
+
     fun release() {
+        boundBluetoothInput = null
         val manager = audioManager ?: return
         releaseBluetoothRoute(manager)
     }

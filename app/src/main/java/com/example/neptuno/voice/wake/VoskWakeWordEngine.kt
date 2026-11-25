@@ -109,24 +109,17 @@ class VoskWakeWordEngine(
                     SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
                 )
                 check(minBuffer > 0) { "Android no pudo calcular el búfer del micrófono." }
-                val recorder = AudioRecord(
-                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                    SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    maxOf(minBuffer * 2, SAMPLE_RATE)
+                // Preferencia explícita del usuario; si no hay selección, usa Bluetooth cuando Android
+                // expone un micrófono compatible (con verificación de que llegue audio). A2DP no es micrófono.
+                val (recorder, selection) = audioRouter.openRecorder(
+                    sampleRate = SAMPLE_RATE,
+                    bufferBytes = maxOf(minBuffer * 2, SAMPLE_RATE),
+                    preferredInputId = audioPreferences?.preferredAudioInputId,
+                    preferBluetooth = audioPreferences?.preferBluetoothAudio ?: true
                 )
                 check(recorder.state == AudioRecord.STATE_INITIALIZED) {
                     "No se pudo inicializar el micrófono."
                 }
-
-                // Preferencia explícita del usuario; si no hay selección, usa Bluetooth cuando Android
-                // expone un micrófono compatible. A2DP no se considera entrada de micrófono.
-                val selection = audioRouter.configureInput(
-                    recorder = recorder,
-                    preferredInputId = audioPreferences?.preferredAudioInputId,
-                    preferBluetooth = audioPreferences?.preferBluetoothAudio ?: true
-                )
                 routeIsBluetooth = selection.isBluetooth
 
                 model = localModel
@@ -195,21 +188,15 @@ class VoskWakeWordEngine(
                         SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
                     )
                     check(minBuffer > 0) { "Android no pudo calcular el búfer del micrófono." }
-                    val replacement = AudioRecord(
-                        MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                        SAMPLE_RATE,
-                        AudioFormat.CHANNEL_IN_MONO,
-                        AudioFormat.ENCODING_PCM_16BIT,
-                        maxOf(minBuffer * 2, SAMPLE_RATE)
+                    val (replacement, replacementSelection) = audioRouter.openRecorder(
+                        sampleRate = SAMPLE_RATE,
+                        bufferBytes = maxOf(minBuffer * 2, SAMPLE_RATE),
+                        preferredInputId = prefs?.preferredAudioInputId,
+                        preferBluetooth = prefs?.preferBluetoothAudio ?: true
                     )
                     check(replacement.state == AudioRecord.STATE_INITIALIZED) {
                         "No se pudo reinicializar el micrófono tras cambiar el dispositivo."
                     }
-                    val replacementSelection = audioRouter.configureInput(
-                        recorder = replacement,
-                        preferredInputId = prefs?.preferredAudioInputId,
-                        preferBluetooth = prefs?.preferBluetoothAudio ?: true
-                    )
                     routeIsBluetooth = replacementSelection.isBluetooth
                     replacement.startRecording()
                     check(replacement.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
