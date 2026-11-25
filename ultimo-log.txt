@@ -1,0 +1,299 @@
+run #67 · commit 86a1fdb · rama trabajo
+
+=== TESTS (últimas 120 líneas) ===
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugBuildConfig
+> Task :app:generateDebugResources FROM-CACHE
+> Task :app:processDebugGoogleServices FROM-CACHE
+> Task :app:packageDebugResources FROM-CACHE
+> Task :app:processDebugNavigationResources FROM-CACHE
+> Task :app:parseDebugLocalResources FROM-CACHE
+> Task :app:generateDebugRFile FROM-CACHE
+> Task :app:javaPreCompileDebug FROM-CACHE
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:compileDebugNavigationResources FROM-CACHE
+> Task :app:mergeDebugResources FROM-CACHE
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug FROM-CACHE
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebugUnitTest FROM-CACHE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:processDebugUnitTestManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
+> Task :app:packageDebugUnitTestForUnitTest
+> Task :app:generateDebugUnitTestConfig
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/Nept-Uno-working/Nept-Uno-working/app/src/main/java/com/example/neptuno/audio/engine/AndroidBluetoothAudioRouter.kt:499:36 'var isBluetoothScoOn: Boolean' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Nept-Uno-working/Nept-Uno-working/app/src/main/java/com/example/neptuno/audio/engine/AndroidTextToSpeechEngine.kt:359:17 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Nept-Uno-working/Nept-Uno-working/app/src/main/java/com/example/neptuno/audio/engine/AndroidTextToSpeechEngine.kt:361:17 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Nept-Uno-working/Nept-Uno-working/app/src/main/java/com/example/neptuno/data/local/NeptunoDatabase.kt:28:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///home/runner/work/Nept-Uno-working/Nept-Uno-working/app/src/main/java/com/example/neptuno/feature/chat/LocalQuickReply.kt:29:84 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Nept-Uno-working/Nept-Uno-working/app/src/main/java/com/example/neptuno/feature/chat/LocalQuickReply.kt:30:103 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+
+> Task :app:compileDebugJavaWithJavac
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:processDebugJavaRes
+> Task :app:kspDebugUnitTestKotlin
+
+> Task :app:compileDebugUnitTestKotlin
+w: file:///home/runner/work/Nept-Uno-working/Nept-Uno-working/app/src/test/java/com/example/neptuno/VoiceRankingTest.kt:17:21 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:testDebugUnitTest
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_5-1795631414588.json
+
+[Incubating] Problems report is available at: file:///home/runner/work/Nept-Uno-working/Nept-Uno-working/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 1m 6s
+33 actionable tasks: 22 executed, 11 from cache
+
+=== COMPILACIÓN (últimas 200 líneas) ===
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Calculating task graph as no cached configuration is available for tasks: assembleDebug
+> Task :app:preBuild UP-TO-DATE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :app:compressDebugAssets FROM-CACHE
+> Task :app:desugarDebugFileDependencies FROM-CACHE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:mergeLibDexDebug FROM-CACHE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders
+> Task :app:compileDebugKotlin UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:mergeExtDexDebug FROM-CACHE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:validateSigningDebug
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+> Task :app:mergeDebugNativeLibs
+
+> Task :app:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so, libdatastore_shared_counter.so, libjnidispatch.so, libvosk.so. Run with --info option to learn more.
+
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:mergeDebugJavaResource
+> Task :app:dexBuilderDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:packageDebug
+> Task :app:assembleDebug
+> Task :app:createDebugApkListingFileRedirect
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_6-1795631479465.json
+
+BUILD SUCCESSFUL in 20s
+39 actionable tasks: 12 executed, 4 from cache, 23 up-to-date
+Configuration cache entry stored.
+
+=== DIAGNÓSTICO DE DEPENDENCIAS ===
+--- com/alphacephei/vosk-android
+    <latest>0.3.75</latest>
+    <release>0.3.75</release>
+HTTP 200
+--- net/java/dev/jna/jna
+    <latest>5.19.1</latest>
+    <release>5.19.1</release>
+HTTP 200
+--- xyz/rementia/openwakeword
+    <latest>0.1.5</latest>
+    <release>0.1.5</release>
+HTTP 200
+--- ai/picovoice/porcupine-android
+    <latest>4.0.2</latest>
+    <release>4.0.2</release>
+HTTP 200
+--- modelo Vosk español (cabeceras)
+HTTP/1.1 200 OK
+Content-Length: 39817833
+
+=== ANÁLISIS DE LA APK ===
+build-tools: /usr/local/lib/android/sdk/build-tools/37.0.0
+--- tamaño y SHA-256
+-rw-r--r-- 1 runner runner 104294742 Nov 25 18:31 Neptuno-debug-arm.apk
+-rw-r--r-- 1 runner runner 125797389 Nov 25 18:31 Neptuno-debug.apk
+440cba4f6985f9ec46f936844822d7abee8e22375bbadb674bb87f98dbcd283f  Neptuno-debug.apk
+--- apksigner verify
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V2 Signer: certificate DN: CN=Android Debug, O=Android, C=US
+V2 Signer: certificate SHA-256 digest: c78766a5bbf5cab4651debcd5a594258ac4f749af4d364b9a3155e188f476f70
+V2 Signer: certificate SHA-1 digest: fe882d6e0498de3298a0622caa60afbb299de764
+V2 Signer: certificate MD5 digest: 20d3627db83b927a94706ca1aad2efcb
+V2 Signer: key algorithm: RSA
+V2 Signer: key size (bits): 2048
+V2 Signer: public key SHA-256 digest: 7a957be39ea9ddd30e90c0eb0827da6f99d77c324ce9bdb076ca0328809b8e99
+V2 Signer: public key SHA-1 digest: da8f60e0f166362bf067b86d728be768af8a0cf8
+V2 Signer: public key MD5 digest: 08da74d2f26a24bb5946b3e1cba8f854
+--- aapt2 badging (paquete, versión, SDK, ABIs, permisos)
+package: name='com.aistudio.neptuno.k7v9xm' versionCode='67' versionName='1.0.67 (86a1fdb)' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+targetSdkVersion:'36'
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.RECORD_AUDIO'
+uses-permission: name='android.permission.FOREGROUND_SERVICE'
+uses-permission: name='android.permission.FOREGROUND_SERVICE_MICROPHONE'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.MODIFY_AUDIO_SETTINGS'
+uses-permission: name='android.permission.BLUETOOTH' maxSdkVersion='30'
+uses-permission: name='android.permission.BLUETOOTH_ADMIN' maxSdkVersion='30'
+uses-permission: name='android.permission.BLUETOOTH_SCAN' usesPermissionFlags='neverForLocation'
+uses-permission: name='android.permission.BLUETOOTH_CONNECT'
+uses-permission: name='android.permission.USE_BIOMETRIC'
+uses-permission: name='android.permission.USE_FINGERPRINT'
+uses-permission: name='com.google.android.providers.gsf.permission.READ_GSERVICES'
+uses-permission: name='com.aistudio.neptuno.k7v9xm.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+application-debuggable
+launchable-activity: name='com.example.MainActivity'  label='Neptuno' icon=''
+native-code: 'arm64-v8a' 'armeabi' 'armeabi-v7a' 'mips' 'mips64' 'x86' 'x86_64'
+--- zipalign (4 bytes)
+125722403 play-services-tasks.properties (OK - compressed)
+125722504 recaptcha.properties (OK - compressed)
+Verification successful
+--- zipalign (páginas de 16 KB)
+125722403 play-services-tasks.properties (OK - compressed)
+125722504 recaptcha.properties (OK - compressed)
+Verification successful
+--- zip íntegro
+No errors detected in compressed data of Neptuno-debug.apk.
+--- 15 archivos más grandes
+126255576                     759 files
+ 42102208  1981-01-01 01:01   classes.dex
+ 13645768  1981-01-01 01:01   classes17.dex
+ 10397552  1981-01-01 01:01   lib/x86/libvosk.so
+ 10335120  1981-01-01 01:01   lib/x86_64/libvosk.so
+ 10042800  1981-01-01 01:01   lib/arm64-v8a/libvosk.so
+  9155648  1981-01-01 01:01   classes19.dex
+  8985628  1981-01-01 01:01   lib/armeabi-v7a/libvosk.so
+  8662860  1981-01-01 01:01   classes18.dex
+  6486528  1981-01-01 01:01   classes20.dex
+   936644  1981-01-01 01:01   resources.arsc
+   516923  1981-01-01 01:01   res/drawable/img_neptuno_icon_1795074912117.jpg
+   302476  1981-01-01 01:01   classes8.dex
+   298908  1981-01-01 01:01   classes5.dex
+   277008  1981-01-01 01:01   classes12.dex
+--- ABIs en lib/
+      4 lib/arm64-v8a/
+      4 lib/armeabi-v7a/
+      1 lib/armeabi/
+      1 lib/mips/
+      1 lib/mips64/
+      4 lib/x86/
+      4 lib/x86_64/
+
+=== INSTALACIÓN EN EMULADOR (Android 11) ===
+--- dispositivo
+11
+x86_64
+--- actualización REAL: instalar v1.0.66 y luego la versión nueva encima
+total 122852
+-rw-r--r-- 1 runner runner 125797389 Nov 25 18:33 Neptuno-v1.0.66.apk
+Performing Streamed Install
+Success
+    versionCode=66 minSdk=29 targetSdk=36
+Performing Streamed Install
+Success
+    versionCode=67 minSdk=29 targetSdk=36
+Success
+--- instalación limpia
+Performing Streamed Install
+Success
+--- paquete instalado
+package:com.aistudio.neptuno.k7v9xm
+    versionCode=67 minSdk=29 targetSdk=36
+    versionName=1.0.67 (86a1fdb)
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    signatures=PackageSignatures{f0c442e version:2, signatures:[1ae395b3], past signatures:[]}
+        android.permission.RECORD_AUDIO: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+--- reinstalación encima (actualización)
+Performing Streamed Install
+Success
+--- arranque
+Events injected: 1
+## Network stats: elapsed time=17ms (0ms mobile, 0ms wifi, 17ms not connected)
+2410
+--- logcat (errores de la app / PackageManager)
+11-25 18:33:22.356   505   505 E PackageManager: Adding duplicate app id: 10063 name=com.android.soundpicker
+11-25 18:33:22.362   505   505 E PackageManager: Adding duplicate app id: 10064 name=com.android.providers.blockednumber
+11-25 18:33:22.372   505   505 E PackageManager: Adding duplicate app id: 10064 name=com.android.calllogbackup
+11-25 18:33:22.378   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.location.fused
+11-25 18:33:22.383   505   505 E PackageManager: Adding duplicate app id: 10067 name=com.android.providers.calendar
+11-25 18:33:22.384   505   505 E PackageManager: Adding duplicate shared id: 2000 name=com.android.shell
+11-25 18:33:22.389   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.inputdevices
+11-25 18:33:22.393   505   505 E PackageManager: Adding duplicate app id: 10064 name=com.android.providers.userdictionary
+11-25 18:33:22.394   505   505 E PackageManager: Adding duplicate shared id: 1001 name=com.android.mms.service
+11-25 18:33:22.397   505   505 E PackageManager: Adding duplicate shared id: 1001 name=com.android.phone
+11-25 18:33:22.400   505   505 E PackageManager: Adding duplicate shared id: 1073 name=com.android.networkstack.permissionconfig
+11-25 18:33:22.401   505   505 E PackageManager: Adding duplicate app id: 10063 name=com.android.mtp
+11-25 18:33:22.403   505   505 E PackageManager: Adding duplicate app id: 10063 name=com.android.providers.media
+11-25 18:33:22.404   505   505 E PackageManager: Adding duplicate shared id: 1073 name=com.android.networkstack
+11-25 18:33:22.407   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.localtransport
+11-25 18:33:22.408   505   505 E PackageManager: Adding duplicate app id: 10064 name=com.android.providers.contacts
+11-25 18:33:22.409   505   505 E PackageManager: Adding duplicate shared id: 1001 name=com.android.providers.telephony
+11-25 18:33:22.410   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.dynsystem
+11-25 18:33:22.411   505   505 E PackageManager: Adding duplicate app id: 10063 name=com.android.providers.downloads.ui
+11-25 18:33:22.412   505   505 E PackageManager: Adding duplicate app id: 10063 name=com.android.providers.downloads
+11-25 18:33:22.412   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.server.telecom
+11-25 18:33:22.429   505   505 E PackageManager: Adding duplicate shared id: 1001 name=com.android.service.ims.presence
+11-25 18:33:22.434   505   505 E PackageManager: Adding duplicate shared id: 1068 name=com.android.se
+11-25 18:33:22.444   505   505 E PackageManager: Adding duplicate shared id: 1002 name=com.android.bluetooth
+11-25 18:33:22.447   505   505 E PackageManager: Adding duplicate shared id: 1001 name=com.android.service.ims
+11-25 18:33:22.450   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.wallpaperbackup
+11-25 18:33:22.452   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.keychain
+11-25 18:33:22.454   505   505 E PackageManager: Adding duplicate shared id: 1001 name=com.android.stk
+11-25 18:33:22.457   505   505 E PackageManager: Adding duplicate shared id: 1027 name=com.android.nfc
+11-25 18:33:22.513   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.emulator.multidisplay
+11-25 18:33:22.520   505   505 E PackageManager: Adding duplicate app id: 10118 name=com.android.emergency
+11-25 18:33:22.533   505   505 E PackageManager: Adding duplicate app id: 10121 name=com.android.systemui
+11-25 18:33:22.541   505   505 E PackageManager: Adding duplicate shared id: 1000 name=com.android.settings
+11-25 18:33:22.549   505   505 E PackageManager: Adding duplicate shared id: 1073 name=com.android.cellbroadcastservice
+11-25 18:33:22.553   505   505 W PackageManager: Unable to update from com.android.cellbroadcastreceiver to com.android.cellbroadcastreceiver.module: old package still exists
+11-25 18:33:22.554   505   505 W PackageManager: Unable to update from com.android.cellbroadcastreceiver to com.android.cellbroadcastreceiver.module: old package still exists
+11-25 18:33:22.564   505   505 E PackageManager: Adding duplicate shared id: 1073 name=com.android.networkstack.tethering
+11-25 18:33:22.628   505   505 E PackageManager: There should probably be a verifier, but, none were found
+11-25 18:33:23.928   505   505 W PackageManager: No disk maintenance in 1795631603928; running immediately
+11-25 18:33:35.408   505   560 W PackageManager: Removing dangling permission: com.aistudio.neptuno.k7v9xm.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION from package com.aistudio.neptuno.k7v9xm
+
+=== VERIFICACIÓN FIREBASE EN LA APK ===
+aapt2: /usr/local/lib/android/sdk/build-tools/37.0.0/aapt2
+    resource 0x7f100065 string/default_web_client_id
+    resource 0x7f100072 string/gcm_defaultSenderId
+    resource 0x7f100077 string/google_app_id
+    resource 0x7f1000d8 string/project_id
