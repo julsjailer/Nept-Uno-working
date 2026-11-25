@@ -629,7 +629,7 @@ private val ACCENT_PRESETS = listOf(
 private fun AccentColorPicker(currentArgb: Int, onSelected: (Int) -> Unit) {
     fun argbForHue(hue: Float): Int = androidx.compose.ui.graphics.Color.hsv(hue, 0.75f, 0.95f).toArgb()
     val currentHue = if (currentArgb == 0) 200f else com.example.ui.theme.accentHue(currentArgb)
-    var sliderHue by androidx.compose.runtime.remember(currentArgb) {
+    val sliderState = androidx.compose.runtime.remember(currentArgb) {
         androidx.compose.runtime.mutableFloatStateOf(currentHue)
     }
     Spacer(modifier = Modifier.height(12.dp))
@@ -685,9 +685,9 @@ private fun AccentColorPicker(currentArgb: Int, onSelected: (Int) -> Unit) {
         }
     }
     androidx.compose.material3.Slider(
-        value = sliderHue,
-        onValueChange = { sliderHue = it },
-        onValueChangeFinished = { onSelected(argbForHue(sliderHue)) },
+        value = sliderState.floatValue,
+        onValueChange = { sliderState.floatValue = it },
+        onValueChangeFinished = { onSelected(argbForHue(sliderState.floatValue)) },
         valueRange = 0f..360f,
         modifier = Modifier.fillMaxWidth().testTag("settings_accent_slider")
     )
