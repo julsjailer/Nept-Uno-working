@@ -391,20 +391,20 @@ class AndroidBluetoothAudioRouter(context: Context) {
             listOf(ScoStrategy.LEGACY_SCO_ONLY, ScoStrategy.PLAIN_MIC_PREFERRED_DEVICE)
         }
         val remembered = appContext.getSharedPreferences("bt_route", Context.MODE_PRIVATE)
-            .getString("strategy_$deviceName", null)
+            .getString("strategy2_$deviceName", null)
         val first = all.firstOrNull { it.name == remembered }
         return if (first != null) listOf(first) + all.filter { it != first } else all
     }
 
     private fun rememberedStrategy(deviceName: String): ScoStrategy? {
         val saved = appContext.getSharedPreferences("bt_route", Context.MODE_PRIVATE)
-            .getString("strategy_$deviceName", null)
+            .getString("strategy2_$deviceName", null)
         return ScoStrategy.values().firstOrNull { it.name == saved }
     }
 
     private fun rememberStrategy(deviceName: String, strategy: ScoStrategy) {
         appContext.getSharedPreferences("bt_route", Context.MODE_PRIVATE)
-            .edit().putString("strategy_$deviceName", strategy.name).apply()
+            .edit().putString("strategy2_$deviceName", strategy.name).apply()
     }
 
     /** Abre el canal con una estrategia y devuelve el AudioRecord solo si en ~1 s llegó audio real (no silencio). */
@@ -430,12 +430,16 @@ class AndroidBluetoothAudioRouter(context: Context) {
             communicationDeviceSelected = true
             awaitCommunicationDevice(manager, communicationOutput)
         }
+        var scoConnected = false
         if (useLegacySco) {
             @Suppress("DEPRECATION")
             manager.startBluetoothSco()
             legacyScoRequested = true
-            awaitLegacySco(manager)
+            scoConnected = awaitLegacySco(manager)
+            BluetoothDiagnosticLog.add("Ruta ${strategy.label}: SCO conectado=$scoConnected")
         }
+        val commDeviceOk = useCommunicationDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            manager.communicationDevice?.id == communicationOutput.id
         delay(BLUETOOTH_ROUTE_SETTLE_MS)
 
         val bluetoothInput = manager.getDevices(AudioManager.GET_DEVICES_INPUTS).firstOrNull(::isBluetoothInput)
@@ -471,7 +475,9 @@ class AndroidBluetoothAudioRouter(context: Context) {
         )
         recorder.stop()
         // Un micrófono Bluetooth que está bien enrutado pero en silencio (nadie habla) NO es un fallo: se acepta.
-        if (routedBluetooth) return recorder
+        // Solo cuenta si el canal de voz Bluetooth (SCO / dispositivo de comunicación) está realmente abierto;
+        // la ruta D (micrófono normal sin SCO) puede decir "Bluetooth" y entregar silencio, así que exige audio.
+        if (routedBluetooth && (scoConnected || commDeviceOk)) return recorder
         // Muchos micrófonos Bluetooth cortan el sonido (silencio digital) cuando nadie habla; una ruta que ya funcionó
         // antes con este auricular se acepta aunque el segundo de prueba sea silencio.
         if (peak < AUDIO_PRESENT_PEAK && !trustSilence) {
