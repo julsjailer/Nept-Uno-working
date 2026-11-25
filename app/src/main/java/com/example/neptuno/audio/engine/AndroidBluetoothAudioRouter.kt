@@ -490,6 +490,35 @@ class AndroidBluetoothAudioRouter(context: Context) {
             // Ruta bien enrutada con el canal de voz abierto pero en silencio: válida si ninguna otra fuente suena.
             if (silentButValid == null && routedBluetooth && (scoConnected || commDeviceOk)) silentButValid = source
         }
+        if (silentButValid != null && scoConnected) {
+            // Diagnóstico: algunos auriculares solo entregan audio a la frecuencia nativa de SCO (8 kHz / 16 kHz).
+            for (rate in listOf(8_000, 16_000, 44_100)) {
+                val peak = runCatching {
+                    val min = AudioRecord.getMinBufferSize(
+                        rate, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT
+                    )
+                    val r = AudioRecord(
+                        android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION, rate,
+                        android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT,
+                        maxOf(min * 2, rate)
+                    )
+                    var pk = 0
+                    try {
+                        r.startRecording()
+                        val buf = ShortArray(1_600)
+                        val stop = System.currentTimeMillis() + 800
+                        while (System.currentTimeMillis() < stop) {
+                            val n = r.read(buf, 0, buf.size)
+                            if (n <= 0) break
+                            for (i in 0 until n) pk = maxOf(pk, kotlin.math.abs(buf[i].toInt()))
+                        }
+                        r.stop()
+                    } finally { r.release() }
+                    pk
+                }.getOrElse { -1 }
+                BluetoothDiagnosticLog.add("Ruta ${strategy.label} frecuencia $rate Hz: pico=$peak")
+            }
+        }
         val fallbackSource = silentButValid ?: return if (trustSilence) {
             create(sources.first()).also { boundBluetoothInput = if (bindDevice) bluetoothInput else null }
         } else null
