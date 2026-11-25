@@ -52,7 +52,7 @@ Tipos: `cambio`, `hallazgo`, `decisión`, `auditoría`, `bloqueo`, `nota`. Hora 
 
 ## 6. Estado vivo (se actualiza)
 
-**Última actualización:** 2026-11-24 00:15 · Claude. Última versión: 1.0.49 (9d25b66), CI verde, incluye conversación continua, micrófono Bluetooth y fix de Gemini truncado; sin probar en teléfono. Pendientes: voz natural, menos cuota de Gemini.
+**Última actualización:** 2026-11-25 02:30 · Claude. **Última versión: 1.0.62 (f88934c)**, CI #62: compilación, APK completa y ARM, análisis y prueba de instalación/actualización en emulador Android 11 correctos; en los tests solo falló el intermitente `NeptunoOfflineFirstSyncTest escenario J` (conocido, sin relación). Todo lo de Bluetooth, avatar y color está **sin probar en teléfono**. Pendientes: que el usuario pruebe el micrófono Bluetooth (KD-06) y pegue el «informe técnico»; probar «Hey Neptuno» por Bluetooth; voz natural; arreglar `escenario J`. Versiones 1.0.55–1.0.62 detalladas en la entrada de la bitácora «2026-11-25 02:30 · Claude · Registro completo 1.0.55–1.0.62».
 
 
 **Incidencia crítica vigente — instalación de APK (2026-11-23 22:02 Caracas):** el usuario confirma que la APK #43 tampoco se instala. El fallo persiste tanto al intentar actualizar la instalación existente como al intentar una instalación limpia después de desinstalar (reporte anterior del usuario; Android mostró el mensaje genérico «No se pudo instalar la aplicación»). La compilación y publicación correctas NO resuelven ni explican el fallo de instalación. No hay aún código de error de Package Installer, registro de PackageManager ni huella de certificado obtenida del APK instalado. **No afirmar que el problema está resuelto ni cambiar a ciegas `applicationId`, `versionCode`, `minSdk`, firma/keystore, ABI o configuración Gradle.** Claude debe tomar el diagnóstico desde evidencia del APK y del dispositivo.
@@ -540,3 +540,16 @@ Claude no estará disponible un tiempo. **ChatGPT, tú trabajas el proyecto hast
 - Avatar del inicio: ahora refleja el estado en vivo (LiveAssistantState publicado por ChatViewModel; v1.0.61 verde).
 - Bluetooth: causa probable hallada — cada ruta exigía audio ≥1 s de prueba y muchos micrófonos BT mandan silencio digital si nadie habla, así que todas se descartaban y se caía al teléfono. Ahora una ruta se acepta si `AudioRecord.routedDevice` es Bluetooth aunque haya silencio.
 - Nuevo `BluetoothDiagnosticLog` + botón «Copiar informe técnico» en la pantalla Bluetooth (para pegar evidencia real). Sin probar en teléfono.
+
+### 2026-11-25 02:30 · Claude · Registro completo 1.0.55–1.0.62 (corrige huecos: el estado vivo decía 1.0.49 y las entradas no traían commit)
+Tabla de versiones (versionCode = nº de run de CI; todas en la rama `trabajo`):
+- **1.0.55 (75ffc88)** Bluetooth: reconocer auriculares al conectar (aviso en chat y por voz), tarjeta «Modo automático + manual», «Probar micrófono», «Volver a automático». Run #55 **falló** (faltaba `import kotlinx.coroutines.flow.first` en BluetoothViewModel).
+- **1.0.56 (ceb416d)** corrige el import; run #56 verde.
+- **1.0.57 (a5dc567)** causa del 0 % con el KD-06: faltaba `MODE_IN_COMMUNICATION`, usar fuente `VOICE_COMMUNICATION` y esperar SCO conectado; run verde.
+- **1.0.58 (17ba56b)** micrófono Bluetooth adaptativo (rutas A–D) + color de la interfaz. Run #58 **falló** (delegado `var by mutableFloatStateOf` sin import).
+- **1.0.59 (2c4f171)** slider de croma sin delegado; run #59 verde con tests.
+- **1.0.60 (0515edd)** ruta Bluetooth compartida entre dictado y «Hey Neptuno» (`SharedRoute`), sin marcar fallo por turnos silenciosos; run #60 verde.
+- **1.0.61 (263c725)** el avatar del inicio refleja el estado real del asistente (`LiveAssistantState` publicado por `ChatViewModel`, combinado en `HomeViewModel`); run #61 verde. Causa: el inicio nunca leía el estado del chat.
+- **1.0.62 (f88934c)** Bluetooth: una ruta BT se acepta si `AudioRecord.routedDevice` es Bluetooth aunque el segundo de prueba sea silencio (causa probable de caer al teléfono); `BluetoothDiagnosticLog` + botón «Copiar informe técnico» en la pantalla Bluetooth; run #62 verde salvo el test intermitente `escenario J`.
+- Nota: las entradas de las 21:10, 23:00 y 23:40 de ayer y la de «v1.0.62» de hoy describen el trabajo; esta tabla es la referencia con commits. Reporte vigente del usuario (2026-11-25): con el KD-06 la app vuelve al micrófono del teléfono y no escucha por Bluetooth; sin diagnóstico real hasta que pegue el informe técnico.
+
